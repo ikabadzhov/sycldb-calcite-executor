@@ -20,9 +20,18 @@ enum logical_op
 
 comp_op get_comp_op(std::string op)
 {
-    if (op == "EQUALS")
+    if (op == "==")
         return EQ;
-    // TODO
+    else if (op == ">=")
+        return GE;
+    else if (op == "<=")
+        return LE;
+    else if (op == "<")
+        return LT;
+    else if (op == ">")
+        return GT;
+    else if (op == "!=" || op == "<>")
+        return NE;
     else
         return EQ;
 }
@@ -70,7 +79,7 @@ inline bool logical(logical_op logic, bool a, bool b)
     case NONE:
         return b;
     default:
-        return false; // NONE or unrecognized logic
+        return false;
     }
 }
 
@@ -82,4 +91,18 @@ void selection(bool flags[], T arr[], std::string op, T value, std::string paren
 
     for (int i = 0; i < col_len; i++)
         flags[i] = logical(logic, flags[i], compare(comparison, arr[i], value));
+
+    std::cout << "Running selection with comparison: " << op << " and parent op " << parent_op << std::endl;
+}
+
+template <typename T>
+void selection(bool flags[], T operand1[], std::string op, T operand2[], std::string parent_op, int col_len)
+{
+    comp_op comparison = get_comp_op(op);
+    logical_op logic = get_logical_op(parent_op);
+
+    for (int i = 0; i < col_len; i++)
+        flags[i] = logical(logic, flags[i], compare(comparison, operand1[i], operand2[i]));
+
+    std::cout << "Running selection with comparison: " << op << " and parent op " << parent_op << std::endl;
 }
