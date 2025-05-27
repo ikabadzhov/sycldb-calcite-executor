@@ -8,16 +8,19 @@
 #include "gen-cpp/CalciteServer.h"
 #include "gen-cpp/calciteserver_types.h"
 #include "kernels/selection.hpp"
+#include "kernels/types.hpp"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
-#define DUMMY_LEN 8
+#define MAX_NTABLES 5
 
-bool dummy_flags[DUMMY_LEN] = {true, true, true, true, true, true, true, true};
-int dummy_column1[DUMMY_LEN] = {1, 2, 3, 4, 5, 6, 7, 8};
-int dummy_column2[DUMMY_LEN] = {10, 20, 30, 40, 50, 60, 70, 80};
+std::map<std::string, int> table_column_numbers({{"lineorder", 17},
+                                                 {"part", 9},
+                                                 {"supplier", 7},
+                                                 {"customer", 8},
+                                                 {"ddate", 17}});
 
 // logicals are AND, OR etc. while comparisons are ==, <= etc.
 // So checking alpha characters is enough to determine if the operation is logical.
@@ -30,10 +33,7 @@ bool is_filter_logical(const std::string &op)
 }
 
 void parse_filter(const ExprType &expr,
-                  int **columns,
-                  int column_count,
-                  bool *flags,
-                  int col_len,
+                  struct TableData<int> table_data,
                   std::string parent_op = "")
 {
     // Recursive parsing of EXRP types. LITERAL and COLUMN are handled in parent EXPR type.
@@ -50,7 +50,7 @@ void parse_filter(const ExprType &expr,
         bool parent_op_used = false;
         for (const ExprType &operand : expr.operands)
         {
-            parse_filter(operand, columns, column_count, flags, col_len, parent_op_used ? expr.op : parent_op);
+            parse_filter(operand, table_data, parent_op_used ? expr.op : parent_op);
             parent_op_used = true;
         }
     }
@@ -58,7 +58,7 @@ void parse_filter(const ExprType &expr,
     {
         // Comparison between two operands
         int **cols = new int *[2];
-        bool free_col[2];
+        bool literal = false;
         if (expr.operands.size() != 2)
         {
             std::cout << "Filter condition: Unsupported number of operands for EXPR" << std::endl;
@@ -71,13 +71,12 @@ void parse_filter(const ExprType &expr,
             switch (expr.operands[i].exprType)
             {
             case ExprOption::COLUMN:
-                cols[i] = columns[expr.operands[i].input % column_count]; // TODO: modulo is only due to dummy data
-                free_col[i] = false;
+                cols[i] = table_data.columns[expr.operands[i].input];
                 break;
             case ExprOption::LITERAL:
-                cols[i] = new int[col_len];
-                free_col[i] = true;
-                std::fill_n(cols[i], col_len, expr.operands[i].literal.value);
+                cols[i] = new int[1];
+                literal = true;
+                cols[i][0] = expr.operands[i].literal.value;
                 break;
             default:
                 std::cout << "Filter condition: Unsupported parsing ExprType "
@@ -88,20 +87,23 @@ void parse_filter(const ExprType &expr,
             }
         }
 
-        selection(flags, cols[0], expr.op, cols[1], parent_op, col_len);
+        // Assumed literal is always the second operand.
+        if (literal)
+        {
+            selection(table_data.flags, cols[0], expr.op, cols[1][0], parent_op, table_data.col_len);
+            delete[] cols[1];
+        }
+        else
+            selection(table_data.flags, cols[0], expr.op, cols[1], parent_op, table_data.col_len);
 
-        for (int i = 0; i < 2; i++)
-            if (free_col[i])
-                delete[] cols[i];
         delete[] cols;
     }
 }
 
 void execute_result(const PlanResult &result)
 {
-    int **columns;
-    int column_count;
-    int col_len;
+    struct TableData<int> tables[MAX_NTABLES];
+    int current_table = 0;
 
     for (const RelNode &rel : result.rels)
     {
@@ -109,16 +111,17 @@ void execute_result(const PlanResult &result)
         {
         case RelNodeType::TABLE_SCAN:
             std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
-            // TODO properly and for multiple tables
-            columns = new int *[2];
-            columns[0] = dummy_column1;
-            columns[1] = dummy_column2;
-            column_count = 2;
-            col_len = DUMMY_LEN;
+            // TODO load real data
+            tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
+            current_table++;
             break;
         case RelNodeType::FILTER:
             // std::cout << "Filter condition: " << rel.condition << std::endl;
-            parse_filter(rel.condition, columns, column_count, dummy_flags, col_len);
+            parse_filter(rel.condition, tables[0]); // TODO: proper table detection for queries > q13
+            break;
+        case RelNodeType::AGGREGATE:
+            std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
+
             break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
@@ -126,7 +129,13 @@ void execute_result(const PlanResult &result)
         }
     }
 
-    delete[] columns;
+    for (int i = 0; i < current_table; i++)
+    {
+        delete[] tables[i].flags;
+        for (int j = 0; j < tables[i].col_number; j++)
+            delete[] tables[i].columns[j];
+        delete[] tables[i].columns;
+    }
 }
 
 int main(int argc, char **argv)
