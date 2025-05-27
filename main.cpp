@@ -162,8 +162,9 @@ int main(int argc, char **argv)
 
     try
     {
-
+        std::cout << "SQL Query: " << sql << std::endl;
         transport->open();
+        std::cout << "Transport opened successfully." << std::endl;
         PlanResult result;
         client.parse(result, sql);
 
