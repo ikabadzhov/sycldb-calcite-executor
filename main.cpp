@@ -32,8 +32,25 @@ bool is_filter_logical(const std::string &op)
     return true;
 }
 
+int perform_operation(int a, int b, const std::string &op)
+{
+    if (op == "*")
+        return a * b;
+    else if (op == "/")
+        return a / b;
+    else if (op == "+")
+        return a + b;
+    else if (op == "-")
+        return a - b;
+    else
+    {
+        std::cout << "Unsupported operation: " << op << std::endl;
+        return 0;
+    }
+}
+
 void parse_filter(const ExprType &expr,
-                  struct TableData<int> table_data,
+                  const TableData<int> table_data,
                   std::string parent_op = "")
 {
     // Recursive parsing of EXRP types. LITERAL and COLUMN are handled in parent EXPR type.
@@ -46,7 +63,7 @@ void parse_filter(const ExprType &expr,
     if (is_filter_logical(expr.op))
     {
         // Logical operation between other expressions. Pass parent op to the first then use the current op.
-        // TODO: check if passing parent logic is correct
+        // TODO: check if passing parent logic is correct in general
         bool parent_op_used = false;
         for (const ExprType &operand : expr.operands)
         {
@@ -65,13 +82,13 @@ void parse_filter(const ExprType &expr,
             return;
         }
 
-        // Get the pointer to the two columns or make a new column with the literal value.
+        // Get the pointer to the two columns or make a new column with the literal value as first cell
         for (int i = 0; i < 2; i++)
         {
             switch (expr.operands[i].exprType)
             {
             case ExprOption::COLUMN:
-                cols[i] = table_data.columns[expr.operands[i].input];
+                cols[i] = table_data.columns[expr.operands[i].input].content;
                 break;
             case ExprOption::LITERAL:
                 cols[i] = new int[1];
@@ -100,9 +117,114 @@ void parse_filter(const ExprType &expr,
     }
 }
 
+void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_data)
+{
+    ColumnData<int> *new_columns = new ColumnData<int>[exprs.size()];
+
+    for (size_t i = 0; i < exprs.size(); i++)
+    {
+        switch (exprs[i].exprType)
+        {
+        case ExprOption::COLUMN:
+            new_columns[i].content = table_data.columns[exprs[i].input].content;
+            new_columns[i].has_ownership = true;
+            table_data.columns[exprs[i].input].has_ownership = false;
+            break;
+        case ExprOption::LITERAL:
+            new_columns[i].content = new int[table_data.col_len];
+            std::fill_n(new_columns[i].content, table_data.col_len, exprs[i].literal.value);
+            new_columns[i].has_ownership = true;
+            break;
+        case ExprOption::EXPR:
+            // Assumed only 2 operands which are either COLUMN or LITERAL
+            if (exprs[i].operands.size() != 2)
+            {
+                std::cout << "Project operation: Unsupported number of operands for EXPR" << std::endl;
+                return;
+            }
+            new_columns[i].content = new int[table_data.col_len];
+            new_columns[i].has_ownership = true;
+
+            for (int j = 0; j < table_data.col_len; j++)
+            {
+                if (table_data.flags[j])
+                {
+                    int val1, val2;
+                    switch (exprs[i].operands[0].exprType)
+                    {
+                    case ExprOption::COLUMN:
+                        val1 = table_data.columns[exprs[i].operands[0].input].content[j];
+                        break;
+                    case ExprOption::LITERAL:
+                        val1 = exprs[i].operands[0].literal.value;
+                        break;
+                    default:
+                        std::cout << "Project operation: Unsupported parsing ExprType "
+                                  << exprs[i].operands[0].exprType
+                                  << " for first operand" << std::endl;
+                        return;
+                    }
+
+                    switch (exprs[i].operands[1].exprType)
+                    {
+                    case ExprOption::COLUMN:
+                        val2 = table_data.columns[exprs[i].operands[1].input].content[j];
+                        break;
+                    case ExprOption::LITERAL:
+                        val2 = exprs[i].operands[1].literal.value;
+                        break;
+                    default:
+                        std::cout << "Project operation: Unsupported parsing ExprType "
+                                  << exprs[i].operands[1].exprType
+                                  << " for second operand" << std::endl;
+                        return;
+                    }
+
+                    new_columns[i].content[j] = perform_operation(val1, val2, exprs[i].op);
+                }
+                else
+                    new_columns[i].content[j] = 0;
+            }
+            break;
+        }
+    }
+
+    // Free old columns and replace with new ones
+    for (int i = 0; i < table_data.col_number; i++)
+        if (table_data.columns[i].has_ownership)
+            delete[] table_data.columns[i].content;
+    delete[] table_data.columns;
+
+    table_data.columns = new_columns;
+    table_data.col_number = exprs.size();
+}
+
+unsigned long long parse_aggregate(const TableData<int> &table_data, const AggType &agg)
+{
+    unsigned long long result = 0;
+
+    if (agg.agg == "SUM")
+    {
+        for (int i = 0; i < table_data.col_len; i++)
+        {
+            if (table_data.flags[i])
+            {
+                result += table_data.columns[agg.operands[0]].content[i]; // Assumed single operand for SUM
+            }
+        }
+    }
+    else
+    {
+        std::cout << "Unsupported aggregate function: " << agg.agg << std::endl;
+        return 0;
+    }
+
+    return result;
+}
+
 void execute_result(const PlanResult &result)
 {
-    struct TableData<int> tables[MAX_NTABLES];
+    TableData<int> tables[MAX_NTABLES];
     int current_table = 0;
 
     for (const RelNode &rel : result.rels)
@@ -119,9 +241,13 @@ void execute_result(const PlanResult &result)
             // std::cout << "Filter condition: " << rel.condition << std::endl;
             parse_filter(rel.condition, tables[0]); // TODO: proper table detection for queries > q13
             break;
+        case RelNodeType::PROJECT:
+            std::cout << "Project operation" << std::endl;
+            parse_project(rel.exprs, tables[0]); // TODO: proper table detection for queries > q13
+            break;
         case RelNodeType::AGGREGATE:
             std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
-
+            std::cout << "Aggregate result: " << parse_aggregate(tables[0], rel.aggs[0]) << std::endl;
             break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
@@ -133,7 +259,8 @@ void execute_result(const PlanResult &result)
     {
         delete[] tables[i].flags;
         for (int j = 0; j < tables[i].col_number; j++)
-            delete[] tables[i].columns[j];
+            if (tables[i].columns[j].has_ownership)
+                delete[] tables[i].columns[j].content;
         delete[] tables[i].columns;
     }
 }
