@@ -7,8 +7,10 @@
 
 #include "gen-cpp/CalciteServer.h"
 #include "gen-cpp/calciteserver_types.h"
+
 #include "kernels/selection.hpp"
 #include "kernels/types.hpp"
+#include "kernels/aggregation.hpp"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -30,23 +32,6 @@ bool is_filter_logical(const std::string &op)
         if (!isalpha(op[i]))
             return false;
     return true;
-}
-
-int perform_operation(int a, int b, const std::string &op)
-{
-    if (op == "*")
-        return a * b;
-    else if (op == "/")
-        return a / b;
-    else if (op == "+")
-        return a + b;
-    else if (op == "-")
-        return a - b;
-    else
-    {
-        std::cout << "Unsupported operation: " << op << std::endl;
-        return 0;
-    }
 }
 
 void parse_filter(const ExprType &expr,
@@ -145,45 +130,31 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             new_columns[i].content = new int[table_data.col_len];
             new_columns[i].has_ownership = true;
 
-            for (int j = 0; j < table_data.col_len; j++)
+            if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
+                exprs[i].operands[1].exprType == ExprOption::COLUMN)
+                perform_operation(new_columns[i].content,
+                                  table_data.columns[exprs[i].operands[0].input].content,
+                                  table_data.columns[exprs[i].operands[1].input].content,
+                                  table_data.flags, table_data.col_len, exprs[i].op);
+            else if (exprs[i].operands[0].exprType == ExprOption::LITERAL &&
+                     exprs[i].operands[1].exprType == ExprOption::COLUMN)
+                perform_operation(new_columns[i].content,
+                                  (int)exprs[i].operands[0].literal.value,
+                                  table_data.columns[exprs[i].operands[1].input].content,
+                                  table_data.flags, table_data.col_len, exprs[i].op);
+            else if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
+                     exprs[i].operands[1].exprType == ExprOption::LITERAL)
+                perform_operation(new_columns[i].content,
+                                  table_data.columns[exprs[i].operands[0].input].content,
+                                  (int)exprs[i].operands[1].literal.value,
+                                  table_data.flags, table_data.col_len, exprs[i].op);
+            else
             {
-                if (table_data.flags[j])
-                {
-                    int val1, val2;
-                    switch (exprs[i].operands[0].exprType)
-                    {
-                    case ExprOption::COLUMN:
-                        val1 = table_data.columns[exprs[i].operands[0].input].content[j];
-                        break;
-                    case ExprOption::LITERAL:
-                        val1 = exprs[i].operands[0].literal.value;
-                        break;
-                    default:
-                        std::cout << "Project operation: Unsupported parsing ExprType "
-                                  << exprs[i].operands[0].exprType
-                                  << " for first operand" << std::endl;
-                        return;
-                    }
-
-                    switch (exprs[i].operands[1].exprType)
-                    {
-                    case ExprOption::COLUMN:
-                        val2 = table_data.columns[exprs[i].operands[1].input].content[j];
-                        break;
-                    case ExprOption::LITERAL:
-                        val2 = exprs[i].operands[1].literal.value;
-                        break;
-                    default:
-                        std::cout << "Project operation: Unsupported parsing ExprType "
-                                  << exprs[i].operands[1].exprType
-                                  << " for second operand" << std::endl;
-                        return;
-                    }
-
-                    new_columns[i].content[j] = perform_operation(val1, val2, exprs[i].op);
-                }
-                else
-                    new_columns[i].content[j] = 0;
+                std::cout << "Project operation: Unsupported parsing ExprType "
+                          << exprs[i].operands[0].exprType << " and "
+                          << exprs[i].operands[1].exprType
+                          << " for EXPR" << std::endl;
+                return;
             }
             break;
         }
@@ -201,23 +172,10 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
 
 unsigned long long parse_aggregate(const TableData<int> &table_data, const AggType &agg)
 {
-    unsigned long long result = 0;
+    unsigned long long result;
 
-    if (agg.agg == "SUM")
-    {
-        for (int i = 0; i < table_data.col_len; i++)
-        {
-            if (table_data.flags[i])
-            {
-                result += table_data.columns[agg.operands[0]].content[i]; // Assumed single operand for SUM
-            }
-        }
-    }
-    else
-    {
-        std::cout << "Unsupported aggregate function: " << agg.agg << std::endl;
-        return 0;
-    }
+    aggregate_operation(result, table_data.columns[agg.operands[0]].content,
+                        table_data.flags, table_data.col_len, agg.agg);
 
     return result;
 }
