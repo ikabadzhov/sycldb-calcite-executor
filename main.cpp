@@ -24,6 +24,137 @@ std::map<std::string, int> table_column_numbers({{"lineorder", 17},
                                                  {"customer", 8},
                                                  {"ddate", 17}});
 
+struct ExecutionInfo
+{
+    std::map<std::string, std::set<int>> loaded_columns;
+};
+
+void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
+{
+    if (expr.exprType == ExprOption::COLUMN)
+        columns.insert(expr.input);
+    else if (expr.exprType == ExprOption::EXPR)
+        for (const ExprType &operand : expr.operands)
+            parse_expression_columns(operand, columns);
+}
+
+ExecutionInfo parse_execution_info(const PlanResult &result)
+{
+    ExecutionInfo info;
+    std::vector<std::vector<std::tuple<std::string, int>>> ops_info;
+    ops_info.reserve(result.rels.size());
+
+    for (const RelNode &rel : result.rels)
+    {
+        switch (rel.relOp)
+        {
+        case RelNodeType::TABLE_SCAN:
+        {
+            int num_columns = table_column_numbers[rel.tables[0]];
+            std::vector<std::tuple<std::string, int>> table;
+            table.reserve(num_columns);
+
+            for (int i = 0; i < num_columns; i++)
+                table.push_back(std::make_tuple(rel.tables[0], i));
+
+            ops_info.push_back(table);
+            info.loaded_columns[rel.tables[0]] = std::set<int>();
+            break;
+        }
+        case RelNodeType::FILTER:
+        {
+            std::vector<std::tuple<std::string, int>> op_info(ops_info.back());
+            std::set<int> columns;
+
+            parse_expression_columns(rel.condition, columns);
+
+            for (int col : columns)
+                info.loaded_columns[std::get<0>(op_info[col])].insert(std::get<1>(op_info[col]));
+
+            ops_info.push_back(op_info);
+            break;
+        }
+        case RelNodeType::PROJECT:
+        {
+            std::vector<std::tuple<std::string, int>> op_info, last_op_info = ops_info.back();
+            int i = 0;
+
+            for (const ExprType &expr : rel.exprs)
+            {
+                std::set<int> columns;
+                parse_expression_columns(expr, columns);
+
+                for (int col : columns)
+                    info.loaded_columns[std::get<0>(last_op_info[col])].insert(std::get<1>(last_op_info[col]));
+
+                if (!columns.empty())
+                    op_info.push_back(std::make_tuple(
+                        std::get<0>(last_op_info[*columns.begin()]),
+                        std::get<1>(last_op_info[*columns.begin()])));
+            }
+            ops_info.push_back(op_info);
+            break;
+        }
+        case RelNodeType::AGGREGATE:
+        {
+            std::vector<std::tuple<std::string, int>> op_info, last_op_info = ops_info.back();
+
+            for (int agg_col : rel.group)
+            {
+                info.loaded_columns[std::get<0>(last_op_info[agg_col])].insert(std::get<1>(last_op_info[agg_col]));
+                op_info.push_back(std::make_tuple(
+                    std::get<0>(last_op_info[agg_col]),
+                    std::get<1>(last_op_info[agg_col])));
+            }
+
+            for (const AggType &agg : rel.aggs)
+            {
+                for (int agg_col : agg.operands)
+                    info.loaded_columns[std::get<0>(last_op_info[agg_col])].insert(std::get<1>(last_op_info[agg_col]));
+
+                int agg_col = agg.operands[0];
+                op_info.push_back(std::make_tuple(
+                    std::get<0>(last_op_info[agg_col]),
+                    std::get<1>(last_op_info[agg_col])));
+            }
+            ops_info.push_back(op_info);
+            break;
+        }
+        case RelNodeType::JOIN:
+        {
+            int left_id = rel.inputs[0], right_id = rel.inputs[1];
+            std::vector<std::tuple<std::string, int>> left_info = ops_info[left_id],
+                                                      right_info = ops_info[right_id],
+                                                      op_info;
+            std::set<int> columns;
+
+            parse_expression_columns(rel.condition, columns);
+
+            op_info.reserve(left_info.size() + right_info.size());
+
+            for (int col : columns)
+            {
+                if (col < left_info.size())
+                    info.loaded_columns[std::get<0>(left_info[col])].insert(std::get<1>(left_info[col]));
+                else
+                    info.loaded_columns[std::get<0>(right_info[col - left_info.size()])].insert(std::get<1>(right_info[col - left_info.size()]));
+            }
+
+            op_info.insert(op_info.begin(), left_info.begin(), left_info.end());
+            op_info.insert(op_info.end(), right_info.begin(), right_info.end());
+
+            ops_info.push_back(op_info);
+            break;
+        }
+        default:
+            std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
+            break;
+        }
+    }
+
+    return info;
+}
+
 // logicals are AND, OR etc. while comparisons are ==, <= etc.
 // So checking alpha characters is enough to determine if the operation is logical.
 bool is_filter_logical(const std::string &op)
@@ -184,6 +315,7 @@ void execute_result(const PlanResult &result)
 {
     TableData<int> tables[MAX_NTABLES];
     int current_table = 0;
+    ExecutionInfo exec_info = parse_execution_info(result);
 
     for (const RelNode &rel : result.rels)
     {
