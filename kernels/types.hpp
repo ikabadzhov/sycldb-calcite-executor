@@ -5,6 +5,7 @@ struct ColumnData
 {
     T *content;
     bool has_ownership;
+    bool is_aggregate_result;
 };
 
 template <typename T>
@@ -32,6 +33,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
     {
         res.columns[i].content = new int[col_len];
         res.columns[i].has_ownership = true;
+        res.columns[i].is_aggregate_result = false;
         for (j = 0; j < col_len; j++)
             res.columns[i].content[j] = (j + i) % 42; // why not
     }

@@ -244,12 +244,14 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
         case ExprOption::COLUMN:
             new_columns[i].content = table_data.columns[exprs[i].input].content;
             new_columns[i].has_ownership = true;
+            new_columns[i].is_aggregate_result = false; // assumed aggregate always happens at the end
             table_data.columns[exprs[i].input].has_ownership = false;
             break;
         case ExprOption::LITERAL:
             new_columns[i].content = new int[table_data.col_len];
             std::fill_n(new_columns[i].content, table_data.col_len, exprs[i].literal.value);
             new_columns[i].has_ownership = true;
+            new_columns[i].is_aggregate_result = false;
             break;
         case ExprOption::EXPR:
             // Assumed only 2 operands which are either COLUMN or LITERAL
@@ -260,6 +262,7 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             }
             new_columns[i].content = new int[table_data.col_len];
             new_columns[i].has_ownership = true;
+            new_columns[i].is_aggregate_result = false;
 
             if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
                 exprs[i].operands[1].exprType == ExprOption::COLUMN)
@@ -301,20 +304,55 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
     table_data.col_number = exprs.size();
 }
 
-unsigned long long parse_aggregate(const TableData<int> &table_data, const AggType &agg)
+void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group)
 {
-    unsigned long long result;
+    if (group.size() == 0)
+    {
+        unsigned long long result;
 
-    aggregate_operation(result, table_data.columns[agg.operands[0]].content,
-                        table_data.flags, table_data.col_len, agg.agg);
+        aggregate_operation(result, table_data.columns[agg.operands[0]].content,
+                            table_data.flags, table_data.col_len, agg.agg);
 
-    return result;
+        for (int i = 0; i < table_data.col_number; i++)
+            if (table_data.columns[i].has_ownership)
+                delete[] table_data.columns[i].content;
+        delete[] table_data.columns;
+        delete[] table_data.flags;
+
+        table_data.columns = new ColumnData<int>[1];
+        table_data.columns[0].content = new int[sizeof(unsigned long long) / sizeof(int)];
+        ((unsigned long long *)table_data.columns[0].content)[0] = result;
+        table_data.columns[0].has_ownership = true;
+        table_data.columns[0].is_aggregate_result = true;
+        table_data.col_number = 1;
+        table_data.col_len = 1;
+        table_data.flags = new bool[1];
+        table_data.flags[0] = true;
+    }
+    else
+    {
+        // TODO
+    }
+}
+
+void print_result(const TableData<int> &table_data)
+{
+    std::cout << "Result table:" << std::endl;
+    for (int i = 0; i < table_data.col_len; i++)
+    {
+        if (table_data.flags[i])
+        {
+            for (int j = 0; j < table_data.col_number; j++)
+                std::cout << ((table_data.columns[j].is_aggregate_result) ? ((unsigned long long *)table_data.columns[j].content)[i] : table_data.columns[j].content[i]) << " ";
+            std::cout << std::endl;
+        }
+    }
 }
 
 void execute_result(const PlanResult &result)
 {
     TableData<int> tables[MAX_NTABLES];
-    int current_table = 0;
+    int current_table = 0, *output_table = new int[result.rels.size()];
     ExecutionInfo exec_info = parse_execution_info(result);
 
     for (const RelNode &rel : result.rels)
@@ -325,25 +363,31 @@ void execute_result(const PlanResult &result)
             std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
             // TODO load real data
             tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
+            output_table[rel.id] = current_table;
             current_table++;
             break;
         case RelNodeType::FILTER:
             // std::cout << "Filter condition: " << rel.condition << std::endl;
-            parse_filter(rel.condition, tables[0]); // TODO: proper table detection for queries > q13
+            parse_filter(rel.condition, tables[output_table[rel.id - 1]]);
+            output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::PROJECT:
             std::cout << "Project operation" << std::endl;
-            parse_project(rel.exprs, tables[0]); // TODO: proper table detection for queries > q13
+            parse_project(rel.exprs, tables[output_table[rel.id - 1]]);
+            output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::AGGREGATE:
             std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
-            std::cout << "Aggregate result: " << parse_aggregate(tables[0], rel.aggs[0]) << std::endl;
+            parse_aggregate(tables[output_table[rel.id - 1]], rel.aggs[0], rel.group);
+            output_table[rel.id] = output_table[rel.id - 1];
             break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
             break;
         }
     }
+
+    print_result(tables[output_table[result.rels.size() - 1]]);
 
     for (int i = 0; i < current_table; i++)
     {
@@ -353,6 +397,7 @@ void execute_result(const PlanResult &result)
                 delete[] tables[i].columns[j].content;
         delete[] tables[i].columns;
     }
+    delete[] output_table;
 }
 
 int main(int argc, char **argv)
