@@ -27,6 +27,7 @@ std::map<std::string, int> table_column_numbers({{"lineorder", 17},
 struct ExecutionInfo
 {
     std::map<std::string, std::set<int>> loaded_columns;
+    std::map<std::string, int> table_last_used;
 };
 
 void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
@@ -59,6 +60,7 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             ops_info.push_back(table);
             info.loaded_columns[rel.tables[0]] = std::set<int>();
+            info.table_last_used[rel.tables[0]] = rel.id;
             break;
         }
         case RelNodeType::FILTER:
@@ -69,8 +71,11 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
             parse_expression_columns(rel.condition, columns);
 
             for (int col : columns)
-                info.loaded_columns[std::get<0>(op_info[col])].insert(std::get<1>(op_info[col]));
-
+            {
+                std::string table_name = std::get<0>(op_info[col]);
+                info.loaded_columns[table_name].insert(std::get<1>(op_info[col]));
+                info.table_last_used[table_name] = rel.id;
+            }
             ops_info.push_back(op_info);
             break;
         }
@@ -85,7 +90,11 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                 parse_expression_columns(expr, columns);
 
                 for (int col : columns)
-                    info.loaded_columns[std::get<0>(last_op_info[col])].insert(std::get<1>(last_op_info[col]));
+                {
+                    std::string table_name = std::get<0>(last_op_info[col]);
+                    info.loaded_columns[table_name].insert(std::get<1>(last_op_info[col]));
+                    info.table_last_used[table_name] = rel.id;
+                }
 
                 if (!columns.empty())
                     op_info.push_back(std::make_tuple(
@@ -101,16 +110,21 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             for (int agg_col : rel.group)
             {
-                info.loaded_columns[std::get<0>(last_op_info[agg_col])].insert(std::get<1>(last_op_info[agg_col]));
-                op_info.push_back(std::make_tuple(
-                    std::get<0>(last_op_info[agg_col]),
-                    std::get<1>(last_op_info[agg_col])));
+                std::string table_name = std::get<0>(last_op_info[agg_col]);
+                int col_index = std::get<1>(last_op_info[agg_col]);
+                info.loaded_columns[table_name].insert(col_index);
+                info.table_last_used[table_name] = rel.id;
+                op_info.push_back(std::make_tuple(table_name, col_index));
             }
 
             for (const AggType &agg : rel.aggs)
             {
                 for (int agg_col : agg.operands)
-                    info.loaded_columns[std::get<0>(last_op_info[agg_col])].insert(std::get<1>(last_op_info[agg_col]));
+                {
+                    std::string table_name = std::get<0>(last_op_info[agg_col]);
+                    info.loaded_columns[table_name].insert(std::get<1>(last_op_info[agg_col]));
+                    info.table_last_used[table_name] = rel.id;
+                }
 
                 int agg_col = agg.operands[0];
                 op_info.push_back(std::make_tuple(
@@ -134,10 +148,18 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             for (int col : columns)
             {
-                if (col < left_info.size())
-                    info.loaded_columns[std::get<0>(left_info[col])].insert(std::get<1>(left_info[col]));
-                else
-                    info.loaded_columns[std::get<0>(right_info[col - left_info.size()])].insert(std::get<1>(right_info[col - left_info.size()]));
+                std::string table_name = std::get<0>(
+                    (col < left_info.size())
+                        ? left_info[col]
+                        : right_info[col - left_info.size()]);
+
+                int col_index = std::get<1>(
+                    (col < left_info.size())
+                        ? left_info[col]
+                        : right_info[col - left_info.size()]);
+
+                info.loaded_columns[table_name].insert(col_index);
+                info.table_last_used[table_name] = rel.id;
             }
 
             op_info.insert(op_info.begin(), left_info.begin(), left_info.end());
