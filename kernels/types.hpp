@@ -6,6 +6,8 @@ struct ColumnData
     T *content;
     bool has_ownership;
     bool is_aggregate_result;
+    T min_value;
+    T max_value;
 };
 
 template <typename T>
@@ -15,6 +17,7 @@ struct TableData
     int col_len;
     int col_number;
     bool *flags;
+    std::string table_name;
 };
 
 TableData<int> generate_dummy(int col_len, int col_number)
@@ -34,6 +37,8 @@ TableData<int> generate_dummy(int col_len, int col_number)
         res.columns[i].content = new int[col_len];
         res.columns[i].has_ownership = true;
         res.columns[i].is_aggregate_result = false;
+        res.columns[i].min_value = 0;
+        res.columns[i].max_value = 42;
         for (j = 0; j < col_len; j++)
             res.columns[i].content[j] = (j + i) % 42; // why not
     }

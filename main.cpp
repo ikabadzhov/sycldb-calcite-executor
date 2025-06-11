@@ -11,6 +11,7 @@
 #include "kernels/selection.hpp"
 #include "kernels/types.hpp"
 #include "kernels/aggregation.hpp"
+#include "kernels/join.hpp"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -265,13 +266,17 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
         {
         case ExprOption::COLUMN:
             new_columns[i].content = table_data.columns[exprs[i].input].content;
+            new_columns[i].min_value = table_data.columns[exprs[i].input].min_value;
+            new_columns[i].max_value = table_data.columns[exprs[i].input].max_value;
             new_columns[i].has_ownership = true;
-            new_columns[i].is_aggregate_result = false; // assumed aggregate always happens at the end
+            new_columns[i].is_aggregate_result = table_data.columns[exprs[i].input].is_aggregate_result;
             table_data.columns[exprs[i].input].has_ownership = false;
             break;
         case ExprOption::LITERAL:
             new_columns[i].content = new int[table_data.col_len];
             std::fill_n(new_columns[i].content, table_data.col_len, exprs[i].literal.value);
+            new_columns[i].min_value = exprs[i].literal.value;
+            new_columns[i].max_value = exprs[i].literal.value;
             new_columns[i].has_ownership = true;
             new_columns[i].is_aggregate_result = false;
             break;
@@ -288,22 +293,38 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
 
             if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
                 exprs[i].operands[1].exprType == ExprOption::COLUMN)
+            {
                 perform_operation(new_columns[i].content,
                                   table_data.columns[exprs[i].operands[0].input].content,
                                   table_data.columns[exprs[i].operands[1].input].content,
                                   table_data.flags, table_data.col_len, exprs[i].op);
+                new_columns[i].min_value =
+                    std::min(table_data.columns[exprs[i].operands[0].input].min_value,
+                             table_data.columns[exprs[i].operands[1].input].min_value);
+                new_columns[i].max_value =
+                    std::max(table_data.columns[exprs[i].operands[0].input].max_value,
+                             table_data.columns[exprs[i].operands[1].input].max_value);
+            }
             else if (exprs[i].operands[0].exprType == ExprOption::LITERAL &&
                      exprs[i].operands[1].exprType == ExprOption::COLUMN)
+            {
                 perform_operation(new_columns[i].content,
                                   (int)exprs[i].operands[0].literal.value,
                                   table_data.columns[exprs[i].operands[1].input].content,
                                   table_data.flags, table_data.col_len, exprs[i].op);
+                new_columns[i].min_value = table_data.columns[exprs[i].operands[1].input].min_value;
+                new_columns[i].max_value = table_data.columns[exprs[i].operands[1].input].max_value;
+            }
             else if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
                      exprs[i].operands[1].exprType == ExprOption::LITERAL)
+            {
                 perform_operation(new_columns[i].content,
                                   table_data.columns[exprs[i].operands[0].input].content,
                                   (int)exprs[i].operands[1].literal.value,
                                   table_data.flags, table_data.col_len, exprs[i].op);
+                new_columns[i].min_value = table_data.columns[exprs[i].operands[0].input].min_value;
+                new_columns[i].max_value = table_data.columns[exprs[i].operands[0].input].max_value;
+            }
             else
             {
                 std::cout << "Project operation: Unsupported parsing ExprType "
@@ -346,6 +367,8 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         ((unsigned long long *)table_data.columns[0].content)[0] = result;
         table_data.columns[0].has_ownership = true;
         table_data.columns[0].is_aggregate_result = true;
+        table_data.columns[0].min_value = 0; // TODO: set real min value
+        table_data.columns[0].max_value = 0; // TODO: set real max value
         table_data.col_number = 1;
         table_data.col_len = 1;
         table_data.flags = new bool[1];
@@ -354,6 +377,47 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
     else
     {
         // TODO
+        std::cout << "Aggregate operation with grouping is not implemented yet." << std::endl;
+    }
+}
+
+void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &right_table, const std::map<std::string, int> &table_last_used)
+{
+    int left_column = rel.condition.operands[0].input,
+        right_column = rel.condition.operands[1].input - left_table.col_number;
+
+    if (left_column < 0 ||
+        left_column >= left_table.col_number ||
+        right_column < 0 ||
+        right_column >= right_table.col_number)
+    {
+        std::cout << "Join operation: Invalid column indices in join condition." << std::endl;
+        return;
+    }
+
+    if (left_table.table_name != "" && table_last_used.at(left_table.table_name) == rel.id)
+    {
+        filter_join(left_table.columns[left_column].content,
+                    left_table.flags, left_table.col_len,
+                    left_table.columns[left_column].max_value,
+                    left_table.columns[left_column].min_value,
+                    right_table.columns[right_column].content,
+                    right_table.flags, right_table.col_len);
+    }
+    else if (right_table.table_name != "" && table_last_used.at(right_table.table_name) == rel.id)
+    {
+        filter_join(right_table.columns[right_column].content,
+                    right_table.flags, right_table.col_len,
+                    right_table.columns[right_column].max_value,
+                    right_table.columns[right_column].min_value,
+                    left_table.columns[left_column].content,
+                    left_table.flags, left_table.col_len);
+    }
+    else
+    {
+        std::cout << "Join operation Unsupported" << std::endl;
+        // just update column number for making the simple join work
+        left_table.col_number += right_table.col_number;
     }
 }
 
@@ -385,6 +449,7 @@ void execute_result(const PlanResult &result)
             std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
             // TODO load real data
             tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
+            tables[current_table].table_name = rel.tables[0];
             output_table[rel.id] = current_table;
             current_table++;
             break;
@@ -402,6 +467,11 @@ void execute_result(const PlanResult &result)
             std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
             parse_aggregate(tables[output_table[rel.id - 1]], rel.aggs[0], rel.group);
             output_table[rel.id] = output_table[rel.id - 1];
+            break;
+        case RelNodeType::JOIN:
+            std::cout << "Join operation" << std::endl;
+            parse_join(rel, tables[output_table[rel.inputs[0]]], tables[output_table[rel.inputs[1]]], exec_info.table_last_used);
+            output_table[rel.id] = output_table[rel.inputs[0]];
             break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
