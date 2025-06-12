@@ -14,6 +14,7 @@ template <typename T>
 struct TableData
 {
     ColumnData<T> *columns;
+    int columns_size;
     int col_len;
     int col_number;
     bool *flags;
@@ -28,6 +29,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
 
     res.col_len = col_len;
     res.col_number = col_number;
+    res.columns_size = col_number; // in dummy we load all columns
 
     res.columns = new ColumnData<int>[col_number];
     res.flags = new bool[col_len];

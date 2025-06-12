@@ -338,13 +338,14 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
     }
 
     // Free old columns and replace with new ones
-    for (int i = 0; i < table_data.col_number; i++)
+    for (int i = 0; i < table_data.columns_size; i++)
         if (table_data.columns[i].has_ownership)
             delete[] table_data.columns[i].content;
     delete[] table_data.columns;
 
     table_data.columns = new_columns;
     table_data.col_number = exprs.size();
+    table_data.columns_size = exprs.size();
 }
 
 void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group)
@@ -356,7 +357,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         aggregate_operation(result, table_data.columns[agg.operands[0]].content,
                             table_data.flags, table_data.col_len, agg.agg);
 
-        for (int i = 0; i < table_data.col_number; i++)
+        for (int i = 0; i < table_data.columns_size; i++)
             if (table_data.columns[i].has_ownership)
                 delete[] table_data.columns[i].content;
         delete[] table_data.columns;
@@ -370,6 +371,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         table_data.columns[0].min_value = 0; // TODO: set real min value
         table_data.columns[0].max_value = 0; // TODO: set real max value
         table_data.col_number = 1;
+        table_data.columns_size = 1;
         table_data.col_len = 1;
         table_data.flags = new bool[1];
         table_data.flags[0] = true;
@@ -416,9 +418,9 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
     else
     {
         std::cout << "Join operation Unsupported" << std::endl;
-        // just update column number for making the simple join work
-        left_table.col_number += right_table.col_number;
     }
+
+    left_table.col_number += right_table.col_number;
 }
 
 void print_result(const TableData<int> &table_data)
@@ -428,7 +430,7 @@ void print_result(const TableData<int> &table_data)
     {
         if (table_data.flags[i])
         {
-            for (int j = 0; j < table_data.col_number; j++)
+            for (int j = 0; j < table_data.columns_size; j++)
                 std::cout << ((table_data.columns[j].is_aggregate_result) ? ((unsigned long long *)table_data.columns[j].content)[i] : table_data.columns[j].content[i]) << " ";
             std::cout << std::endl;
         }
@@ -484,7 +486,7 @@ void execute_result(const PlanResult &result)
     for (int i = 0; i < current_table; i++)
     {
         delete[] tables[i].flags;
-        for (int j = 0; j < tables[i].col_number; j++)
+        for (int j = 0; j < tables[i].columns_size; j++)
             if (tables[i].columns[j].has_ownership)
                 delete[] tables[i].columns[j].content;
         delete[] tables[i].columns;
@@ -516,10 +518,11 @@ int main(int argc, char **argv)
     }
     else
     {
-        sql = "select sum(lo_extendedprice * lo_discount) as revenue\
-                            from lineorder\
-                            where lo_orderdate >= 19930101 and\
-                            lo_orderdate <= 19940101 and lo_discount >= 1 and lo_discount <= 3 and lo_quantity < 25;";
+        sql = "select sum(lo_revenue)\
+        from lineorder, ddate, part, supplier\
+        where lo_orderdate = d_datekey\
+        and lo_partkey = p_partkey\
+        and lo_suppkey = s_suppkey;";
     }
 
     try
