@@ -4,22 +4,22 @@ template <typename T>
 struct ColumnData
 {
     T *content;
-    bool has_ownership;
-    bool is_aggregate_result;
-    T min_value;
-    T max_value;
+    bool has_ownership;       // Indicates if this column owns the memory for its content
+    bool is_aggregate_result; // Indicates if this column is the result of an aggregate operation
+    T min_value;              // Minimum value in the column
+    T max_value;              // Maximum value in the column
 };
 
 template <typename T>
 struct TableData
 {
     ColumnData<T> *columns;
-    int columns_size;
-    int col_len;
-    int col_number;
-    bool *flags;
+    int columns_size; // length of the columns array (number of columns loaded)
+    int col_len;      // number of rows
+    int col_number;   // total number of columns in the table
+    bool *flags;      // selection flags
     std::string table_name;
-    std::map<int, int> column_indices; // Maps column index to its position in the table
+    std::map<int, int> column_indices; // Maps column numbers from calcite to its index in the columns array
 };
 
 TableData<int> generate_dummy(int col_len, int col_number)
@@ -37,6 +37,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
 
     for (i = 0; i < col_number; i++)
     {
+        // in dummy all columns are loaded so indexes are themselves
         res.column_indices[i] = i;
         res.columns[i].content = new int[col_len];
         res.columns[i].has_ownership = true;

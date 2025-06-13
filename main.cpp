@@ -40,9 +40,14 @@ void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
             parse_expression_columns(operand, columns);
 }
 
+// initially parse the data structure in order to find all columns used and the last time each table was used
 ExecutionInfo parse_execution_info(const PlanResult &result)
 {
     ExecutionInfo info;
+
+    // ops_info stores information about every operation.
+    // index is the operation id, content is a vector of tuples
+    // where the first element is the table name and the second is the column number.
     std::vector<std::vector<std::tuple<std::string, int>>> ops_info;
     ops_info.reserve(result.rels.size());
 
@@ -56,21 +61,27 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
             std::vector<std::tuple<std::string, int>> table;
             table.reserve(num_columns);
 
+            // all the columns of the table
             for (int i = 0; i < num_columns; i++)
                 table.push_back(std::make_tuple(rel.tables[0], i));
 
             ops_info.push_back(table);
+
+            // init info for the table in the result
             info.loaded_columns[rel.tables[0]] = std::set<int>();
             info.table_last_used[rel.tables[0]] = rel.id;
             break;
         }
         case RelNodeType::FILTER:
         {
+            // a filter list of columns is the same as the previous operation
             std::vector<std::tuple<std::string, int>> op_info(ops_info.back());
             std::set<int> columns;
 
             parse_expression_columns(rel.condition, columns);
 
+            // mark columns in the filter as used
+            // mark the table as last used at current id
             for (int col : columns)
             {
                 std::string table_name = std::get<0>(op_info[col]);
@@ -90,6 +101,8 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                 std::set<int> columns;
                 parse_expression_columns(expr, columns);
 
+                // mark columns in the project as used (if any)
+                // mark the table as last used at current id
                 for (int col : columns)
                 {
                     std::string table_name = std::get<0>(last_op_info[col]);
@@ -97,6 +110,8 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                     info.table_last_used[table_name] = rel.id;
                 }
 
+                // if the expression contains at least one column, use the first one as a reference
+                // TODO: improve this by considering all columns
                 if (!columns.empty())
                     op_info.push_back(std::make_tuple(
                         std::get<0>(last_op_info[*columns.begin()]),
@@ -109,6 +124,9 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
         {
             std::vector<std::tuple<std::string, int>> op_info, last_op_info = ops_info.back();
 
+            // mark all columns in the group by as used (if any)
+            // mark the table as last used at current id
+            // save the info about the columns since they form the new table
             for (int agg_col : rel.group)
             {
                 std::string table_name = std::get<0>(last_op_info[agg_col]);
@@ -120,6 +138,7 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             for (const AggType &agg : rel.aggs)
             {
+                // save columns and table for every aggregate operation
                 for (int agg_col : agg.operands)
                 {
                     std::string table_name = std::get<0>(last_op_info[agg_col]);
@@ -127,6 +146,8 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                     info.table_last_used[table_name] = rel.id;
                 }
 
+                // use the first column of the aggregate as a reference
+                // TODO: improve this by considering all columns
                 int agg_col = agg.operands[0];
                 op_info.push_back(std::make_tuple(
                     std::get<0>(last_op_info[agg_col]),
@@ -147,6 +168,8 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             op_info.reserve(left_info.size() + right_info.size());
 
+            // mark columns in the join condition as used
+            // mark the tables as last used at current id
             for (int col : columns)
             {
                 std::string table_name = std::get<0>(
@@ -163,6 +186,7 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                 info.table_last_used[table_name] = rel.id;
             }
 
+            // insert left and right info into the operation info
             op_info.insert(op_info.begin(), left_info.begin(), left_info.end());
             op_info.insert(op_info.end(), right_info.begin(), right_info.end());
 
@@ -265,6 +289,7 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
         switch (exprs[i].exprType)
         {
         case ExprOption::COLUMN:
+            // Copy the column data from the original table and pass ownership
             new_columns[i].content = table_data.columns[table_data.column_indices.at(exprs[i].input)].content;
             new_columns[i].min_value = table_data.columns[table_data.column_indices.at(exprs[i].input)].min_value;
             new_columns[i].max_value = table_data.columns[table_data.column_indices.at(exprs[i].input)].max_value;
@@ -273,6 +298,7 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             table_data.columns[table_data.column_indices.at(exprs[i].input)].has_ownership = false;
             break;
         case ExprOption::LITERAL:
+            // create a new column with the literal value
             new_columns[i].content = new int[table_data.col_len];
             std::fill_n(new_columns[i].content, table_data.col_len, exprs[i].literal.value);
             new_columns[i].min_value = exprs[i].literal.value;
@@ -291,6 +317,8 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             new_columns[i].has_ownership = true;
             new_columns[i].is_aggregate_result = false;
 
+            // call the perform_operation overloaded function based on the operands types
+            // and set min and max values of the column
             if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
                 exprs[i].operands[1].exprType == ExprOption::COLUMN)
             {
@@ -346,6 +374,8 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
     table_data.columns = new_columns;
     table_data.col_number = exprs.size();
     table_data.columns_size = exprs.size();
+
+    // update column indices (they are now just themselves)
     table_data.column_indices.clear();
     for (int i = 0; i < table_data.col_number; i++)
         table_data.column_indices[i] = i;
@@ -360,6 +390,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         aggregate_operation(result, table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
                             table_data.flags, table_data.col_len, agg.agg);
 
+        // Free old columns and replace with the result column
         for (int i = 0; i < table_data.columns_size; i++)
             if (table_data.columns[i].has_ownership)
                 delete[] table_data.columns[i].content;
@@ -402,6 +433,7 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
         return;
     }
 
+    // filter joins if one of the two tables is last accessed at this operation
     if (left_table.table_name != "" && table_last_used.at(left_table.table_name) == rel.id)
     {
         filter_join(left_table.columns[left_table.column_indices.at(left_column)].content,
@@ -425,6 +457,8 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
         std::cout << "Join operation Unsupported" << std::endl;
     }
 
+    // update col_number to reflect the new number of columns after join
+    // assumed right table is joined into the left table
     left_table.col_number += right_table.col_number;
 }
 
@@ -445,7 +479,8 @@ void print_result(const TableData<int> &table_data)
 void execute_result(const PlanResult &result)
 {
     TableData<int> tables[MAX_NTABLES];
-    int current_table = 0, *output_table = new int[result.rels.size()];
+    int current_table = 0,
+        *output_table = new int[result.rels.size()]; // used to track the output table of each operation, in order to be referenced in the joins. other operation types just use the previous output table
     ExecutionInfo exec_info = parse_execution_info(result);
 
     for (const RelNode &rel : result.rels)
