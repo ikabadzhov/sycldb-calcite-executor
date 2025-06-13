@@ -346,6 +346,9 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
     table_data.columns = new_columns;
     table_data.col_number = exprs.size();
     table_data.columns_size = exprs.size();
+    table_data.column_indices.clear();
+    for (int i = 0; i < table_data.col_number; i++)
+        table_data.column_indices[i] = i;
 }
 
 void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group)
