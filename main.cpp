@@ -227,7 +227,7 @@ void parse_filter(const ExprType &expr,
             switch (expr.operands[i].exprType)
             {
             case ExprOption::COLUMN:
-                cols[i] = table_data.columns[expr.operands[i].input].content;
+                cols[i] = table_data.columns[table_data.column_indices.at(expr.operands[i].input)].content;
                 break;
             case ExprOption::LITERAL:
                 cols[i] = new int[1];
@@ -265,12 +265,12 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
         switch (exprs[i].exprType)
         {
         case ExprOption::COLUMN:
-            new_columns[i].content = table_data.columns[exprs[i].input].content;
-            new_columns[i].min_value = table_data.columns[exprs[i].input].min_value;
-            new_columns[i].max_value = table_data.columns[exprs[i].input].max_value;
+            new_columns[i].content = table_data.columns[table_data.column_indices.at(exprs[i].input)].content;
+            new_columns[i].min_value = table_data.columns[table_data.column_indices.at(exprs[i].input)].min_value;
+            new_columns[i].max_value = table_data.columns[table_data.column_indices.at(exprs[i].input)].max_value;
             new_columns[i].has_ownership = true;
-            new_columns[i].is_aggregate_result = table_data.columns[exprs[i].input].is_aggregate_result;
-            table_data.columns[exprs[i].input].has_ownership = false;
+            new_columns[i].is_aggregate_result = table_data.columns[table_data.column_indices.at(exprs[i].input)].is_aggregate_result;
+            table_data.columns[table_data.column_indices.at(exprs[i].input)].has_ownership = false;
             break;
         case ExprOption::LITERAL:
             new_columns[i].content = new int[table_data.col_len];
@@ -295,35 +295,35 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
                 exprs[i].operands[1].exprType == ExprOption::COLUMN)
             {
                 perform_operation(new_columns[i].content,
-                                  table_data.columns[exprs[i].operands[0].input].content,
-                                  table_data.columns[exprs[i].operands[1].input].content,
+                                  table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].content,
+                                  table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].content,
                                   table_data.flags, table_data.col_len, exprs[i].op);
                 new_columns[i].min_value =
-                    std::min(table_data.columns[exprs[i].operands[0].input].min_value,
-                             table_data.columns[exprs[i].operands[1].input].min_value);
+                    std::min(table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].min_value,
+                             table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].min_value);
                 new_columns[i].max_value =
-                    std::max(table_data.columns[exprs[i].operands[0].input].max_value,
-                             table_data.columns[exprs[i].operands[1].input].max_value);
+                    std::max(table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].max_value,
+                             table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].max_value);
             }
             else if (exprs[i].operands[0].exprType == ExprOption::LITERAL &&
                      exprs[i].operands[1].exprType == ExprOption::COLUMN)
             {
                 perform_operation(new_columns[i].content,
                                   (int)exprs[i].operands[0].literal.value,
-                                  table_data.columns[exprs[i].operands[1].input].content,
+                                  table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].content,
                                   table_data.flags, table_data.col_len, exprs[i].op);
-                new_columns[i].min_value = table_data.columns[exprs[i].operands[1].input].min_value;
-                new_columns[i].max_value = table_data.columns[exprs[i].operands[1].input].max_value;
+                new_columns[i].min_value = table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].min_value;
+                new_columns[i].max_value = table_data.columns[table_data.column_indices.at(exprs[i].operands[1].input)].max_value;
             }
             else if (exprs[i].operands[0].exprType == ExprOption::COLUMN &&
                      exprs[i].operands[1].exprType == ExprOption::LITERAL)
             {
                 perform_operation(new_columns[i].content,
-                                  table_data.columns[exprs[i].operands[0].input].content,
+                                  table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].content,
                                   (int)exprs[i].operands[1].literal.value,
                                   table_data.flags, table_data.col_len, exprs[i].op);
-                new_columns[i].min_value = table_data.columns[exprs[i].operands[0].input].min_value;
-                new_columns[i].max_value = table_data.columns[exprs[i].operands[0].input].max_value;
+                new_columns[i].min_value = table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].min_value;
+                new_columns[i].max_value = table_data.columns[table_data.column_indices.at(exprs[i].operands[0].input)].max_value;
             }
             else
             {
@@ -354,7 +354,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
     {
         unsigned long long result;
 
-        aggregate_operation(result, table_data.columns[agg.operands[0]].content,
+        aggregate_operation(result, table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
                             table_data.flags, table_data.col_len, agg.agg);
 
         for (int i = 0; i < table_data.columns_size; i++)
@@ -362,6 +362,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
                 delete[] table_data.columns[i].content;
         delete[] table_data.columns;
         delete[] table_data.flags;
+        table_data.column_indices.clear();
 
         table_data.columns = new ColumnData<int>[1];
         table_data.columns[0].content = new int[sizeof(unsigned long long) / sizeof(int)];
@@ -375,6 +376,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         table_data.col_len = 1;
         table_data.flags = new bool[1];
         table_data.flags[0] = true;
+        table_data.column_indices[0] = 0;
     }
     else
     {
@@ -399,20 +401,20 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
 
     if (left_table.table_name != "" && table_last_used.at(left_table.table_name) == rel.id)
     {
-        filter_join(left_table.columns[left_column].content,
+        filter_join(left_table.columns[left_table.column_indices.at(left_column)].content,
                     left_table.flags, left_table.col_len,
-                    left_table.columns[left_column].max_value,
-                    left_table.columns[left_column].min_value,
-                    right_table.columns[right_column].content,
+                    left_table.columns[left_table.column_indices.at(left_column)].max_value,
+                    left_table.columns[left_table.column_indices.at(left_column)].min_value,
+                    right_table.columns[right_table.column_indices.at(right_column)].content,
                     right_table.flags, right_table.col_len);
     }
     else if (right_table.table_name != "" && table_last_used.at(right_table.table_name) == rel.id)
     {
-        filter_join(right_table.columns[right_column].content,
+        filter_join(right_table.columns[right_table.column_indices.at(right_column)].content,
                     right_table.flags, right_table.col_len,
-                    right_table.columns[right_column].max_value,
-                    right_table.columns[right_column].min_value,
-                    left_table.columns[left_column].content,
+                    right_table.columns[right_table.column_indices.at(right_column)].max_value,
+                    right_table.columns[right_table.column_indices.at(right_column)].min_value,
+                    left_table.columns[left_table.column_indices.at(left_column)].content,
                     left_table.flags, left_table.col_len);
     }
     else
@@ -430,7 +432,7 @@ void print_result(const TableData<int> &table_data)
     {
         if (table_data.flags[i])
         {
-            for (int j = 0; j < table_data.columns_size; j++)
+            for (int j = 0; j < table_data.columns_size; j++) // at this point column_size should match col_number
                 std::cout << ((table_data.columns[j].is_aggregate_result) ? ((unsigned long long *)table_data.columns[j].content)[i] : table_data.columns[j].content[i]) << " ";
             std::cout << std::endl;
         }

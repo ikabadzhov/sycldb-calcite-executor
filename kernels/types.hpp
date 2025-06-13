@@ -19,6 +19,7 @@ struct TableData
     int col_number;
     bool *flags;
     std::string table_name;
+    std::map<int, int> column_indices; // Maps column index to its position in the table
 };
 
 TableData<int> generate_dummy(int col_len, int col_number)
@@ -36,6 +37,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
 
     for (i = 0; i < col_number; i++)
     {
+        res.column_indices[i] = i;
         res.columns[i].content = new int[col_len];
         res.columns[i].has_ownership = true;
         res.columns[i].is_aggregate_result = false;
