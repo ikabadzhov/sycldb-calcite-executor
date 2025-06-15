@@ -433,17 +433,8 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
         return;
     }
 
-    // filter joins if one of the two tables is last accessed at this operation
-    if (left_table.table_name != "" && table_last_used.at(left_table.table_name) == rel.id)
-    {
-        filter_join(left_table.columns[left_table.column_indices.at(left_column)].content,
-                    left_table.flags, left_table.col_len,
-                    left_table.columns[left_table.column_indices.at(left_column)].max_value,
-                    left_table.columns[left_table.column_indices.at(left_column)].min_value,
-                    right_table.columns[right_table.column_indices.at(right_column)].content,
-                    right_table.flags, right_table.col_len);
-    }
-    else if (right_table.table_name != "" && table_last_used.at(right_table.table_name) == rel.id)
+    // filter joins if the right table is last accessed at this operation
+    if (right_table.table_name != "" && table_last_used.at(right_table.table_name) == rel.id)
     {
         filter_join(right_table.columns[right_table.column_indices.at(right_column)].content,
                     right_table.flags, right_table.col_len,
@@ -451,15 +442,17 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
                     right_table.columns[right_table.column_indices.at(right_column)].min_value,
                     left_table.columns[left_table.column_indices.at(left_column)].content,
                     left_table.flags, left_table.col_len);
+        left_table.col_number += right_table.col_number;
+    }
+    else if (left_table.table_name == "lineorder")
+    {
+        full_join(left_table, right_table, left_column, right_column);
     }
     else
     {
         std::cout << "Join operation Unsupported" << std::endl;
+        left_table.col_number += right_table.col_number;
     }
-
-    // update col_number to reflect the new number of columns after join
-    // assumed right table is joined into the left table
-    left_table.col_number += right_table.col_number;
 }
 
 void print_result(const TableData<int> &table_data)
