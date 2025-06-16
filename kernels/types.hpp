@@ -22,7 +22,7 @@ struct TableData
     std::map<int, int> column_indices; // Maps column numbers from calcite to its index in the columns array
 };
 
-TableData<int> generate_dummy(int col_len, int col_number)
+TableData<int> generate_dummy(int col_len, int col_number, const std::set<int> &columns)
 {
     int i, j;
 
@@ -35,6 +35,20 @@ TableData<int> generate_dummy(int col_len, int col_number)
     res.columns = new ColumnData<int>[col_number];
     res.flags = new bool[col_len];
 
+
+    for (auto &col_idx : columns)
+    {
+        res.column_indices[col_idx] = col_idx; // map the column index to itself
+        res.columns[col_idx].content = new int[col_len];
+        res.columns[col_idx].has_ownership = true;
+        res.columns[col_idx].is_aggregate_result = false;
+        res.columns[col_idx].min_value = 0;
+        res.columns[col_idx].max_value = 42; // arbitrary max value
+        for (j = 0; j < col_len; j++)
+            res.columns[col_idx].content[j] = (j + col_idx) % 42; // arbitrary content
+    }
+
+    /*
     for (i = 0; i < col_number; i++)
     {
         // in dummy all columns are loaded so indexes are themselves
@@ -47,6 +61,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
         for (j = 0; j < col_len; j++)
             res.columns[i].content[j] = (j + i) % 42; // why not
     }
+    */
 
     return res;
 }

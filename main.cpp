@@ -199,6 +199,7 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
         }
     }
 
+
     return info;
 }
 
@@ -382,22 +383,32 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
 }
 
 void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group)
+                     //,const std::set<int>& loaded_columns)
 {
     if (group.size() == 0)
     {
-        unsigned long long result;
+        unsigned long long result = 0;
 
         aggregate_operation(result, table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
                             table_data.flags, table_data.col_len, agg.agg);
 
         // Free old columns and replace with the result column
-        for (int i = 0; i < table_data.columns_size; i++)
-            if (table_data.columns[i].has_ownership)
-                delete[] table_data.columns[i].content;
+        //for (int i = 0; i < table_data.columns_size; i++)
+        //    if (table_data.columns[i].has_ownership)
+        //        delete[] table_data.columns[i].content;
+        /*
+        for (auto &col : loaded_columns)
+        {
+            if (table_data.columns[table_data.column_indices.at(col)].has_ownership)
+            {
+                delete[] table_data.columns[table_data.column_indices.at(col)].content;
+            }
+        }
         delete[] table_data.columns;
         delete[] table_data.flags;
+        */
         table_data.column_indices.clear();
-
+        
         table_data.columns = new ColumnData<int>[1];
         table_data.columns[0].content = new int[sizeof(unsigned long long) / sizeof(int)];
         ((unsigned long long *)table_data.columns[0].content)[0] = result;
@@ -476,17 +487,39 @@ void execute_result(const PlanResult &result)
         *output_table = new int[result.rels.size()]; // used to track the output table of each operation, in order to be referenced in the joins. other operation types just use the previous output table
     ExecutionInfo exec_info = parse_execution_info(result);
 
+    //std::map<std::string, std::set<int>> loaded_columns;
+    // print the list of loaded columns
+    std::cout << "Loaded columns:" << std::endl;
+    for (const auto &pair : exec_info.loaded_columns)
+    {
+        std::cout << pair.first << ": ";
+        for (int col : pair.second)
+            std::cout << col << " ";
+        std::cout << std::endl;
+    }
+
+    for (const RelNode &rel : result.rels)
+    {
+        if (rel.relOp != RelNodeType::TABLE_SCAN)
+            continue;
+        std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
+        if (exec_info.loaded_columns.find(rel.tables[0]) == exec_info.loaded_columns.end())
+        {
+            std::cout << "Table " << rel.tables[0] << " was never loaded." << std::endl;
+            return;
+        }
+        std::set<int>& column_idxs = exec_info.loaded_columns[rel.tables[0]];
+        tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]], column_idxs);
+        tables[current_table].table_name = rel.tables[0];
+        output_table[rel.id] = current_table;
+        current_table++;
+    }
+
     for (const RelNode &rel : result.rels)
     {
         switch (rel.relOp)
         {
         case RelNodeType::TABLE_SCAN:
-            std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
-            // TODO load real data
-            tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
-            tables[current_table].table_name = rel.tables[0];
-            output_table[rel.id] = current_table;
-            current_table++;
             break;
         case RelNodeType::FILTER:
             // std::cout << "Filter condition: " << rel.condition << std::endl;
@@ -501,6 +534,7 @@ void execute_result(const PlanResult &result)
         case RelNodeType::AGGREGATE:
             std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
             parse_aggregate(tables[output_table[rel.id - 1]], rel.aggs[0], rel.group);
+            std::cout << "Columns after aggregation: " << tables[output_table[rel.id - 1]].col_number << std::endl;
             output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::JOIN:
@@ -516,6 +550,7 @@ void execute_result(const PlanResult &result)
 
     print_result(tables[output_table[result.rels.size() - 1]]);
 
+    /*
     for (int i = 0; i < current_table; i++)
     {
         delete[] tables[i].flags;
@@ -525,6 +560,7 @@ void execute_result(const PlanResult &result)
         delete[] tables[i].columns;
     }
     delete[] output_table;
+    */
 }
 
 int main(int argc, char **argv)
