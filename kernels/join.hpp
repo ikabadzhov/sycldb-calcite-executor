@@ -13,19 +13,21 @@ void build_keys_ht(T col[], bool flags[], int col_len, bool ht[], T ht_len, T ht
         ht[HASH(col[i], ht_len, ht_min_value)] = flags[i];
 }
 
-void build_key_vals_ht(int col[], bool flags[], int col_len, int ht[], int ht_max_value, int ht_min_value)
+void build_key_vals_ht(int col[], bool flags[], int col_len, int ht[], int ht_len, int ht_min_value)
 {
     for (int i = 0; i < col_len; i++)
-    {
+        ht[HASH(col[i], ht_len, ht_min_value)] = flags[i];
+    
+    /*    {
         if (flags[i])
         {
-            int hash = HASH(col[i], ht_max_value, ht_min_value);
+            int hash = HASH<uint64_t>(col[i], ht_len, ht_min_value);
             ht[hash << 1] = 1;
             ht[(hash << 1) + 1] = i;
         }
         else
-            ht[HASH(col[i], ht_max_value, ht_min_value) << 1] = 0;
-    }
+            ht[HASH(col[i], ht_len, ht_min_value) << 1] = 0;
+    }*/
 }
 
 template <typename T>
@@ -60,16 +62,17 @@ void full_join(TableData<int> &probe_table,
                int probe_col_index,
                int build_col_index)
 {
-    int *ht = new int[build_table.col_len * 2],
-        build_column = build_table.column_indices.at(build_col_index),
-        probe_column = probe_table.column_indices.at(probe_col_index);
+    int ht_len = build_table.columns[build_table.column_indices.at(build_col_index)].max_value -
+                 build_table.columns[build_table.column_indices.at(build_col_index)].min_value + 1;
+    int *ht = new int[ht_len],
+    build_column = build_table.column_indices.at(build_col_index),
+    probe_column = probe_table.column_indices.at(probe_col_index);
 
-    std::fill_n(ht, build_table.col_len * 2, 0); // maybe it's not necessary to initialize
+    std::fill_n(ht, ht_len, 0); // maybe it's not necessary to initialize
 
     build_key_vals_ht(
         build_table.columns[build_column].content,
-        build_table.flags, build_table.col_len, ht,
-        build_table.columns[build_column].max_value,
+        build_table.flags, build_table.col_len, ht, ht_len,
         build_table.columns[build_column].min_value);
 
     // merge columns
@@ -94,22 +97,27 @@ void full_join(TableData<int> &probe_table,
         new_columns[new_index].max_value = build_table.columns[pair.second].max_value;
     }
 
+    std::cout << "Full join: probe_table.col_len = " << probe_table.col_len
+              << ", build_table.col_len = " << build_table.col_len
+              << ", ht_len = " << ht_len << std::endl;
+
     for (int i = 0; i < probe_table.col_len; i++)
     {
         if (probe_table.flags[i])
         {
             int hash = HASH(new_columns[probe_column].content[i],
-                            build_table.columns[build_column].max_value,
+                            ht_len,
                             build_table.columns[build_column].min_value);
-            if (ht[hash << 1] == 1)
+            if (ht[hash])
             {
-                int build_row_index = ht[(hash << 1) + 1];
+                //int build_row_index = ht[(hash << 1) + 1];
+                new_columns[probe_column].content[i] = build_table.columns[build_column].content[ht[hash]]; // copy the build column value to the probe column
                 // copy build row to the new columns
-                for (int j = 0; j < build_table.columns_size; j++)
-                {
+                //for (int j = 0; j < build_table.columns_size; j++)
+                //{
                     // assumed same order of columns bewteen indexed and real
-                    new_columns[j + probe_table.columns_size].content[i] = build_table.columns[j].content[build_row_index];
-                }
+                //    new_columns[j + probe_table.columns_size].content[i] = build_table.columns[j].content[build_row_index];
+                //}
             }
             else
                 probe_table.flags[i] = false; // mark as not selected
@@ -118,7 +126,7 @@ void full_join(TableData<int> &probe_table,
 
     probe_table.columns_size += build_table.columns_size;
     probe_table.col_number += build_table.col_number;
-    delete[] probe_table.columns;
+    //delete[] probe_table.columns;
     probe_table.columns = new_columns;
-    delete[] ht;
+    //delete[] ht;
 }
