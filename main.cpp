@@ -224,7 +224,48 @@ void parse_filter(const ExprType &expr,
         return;
     }
 
-    if (is_filter_logical(expr.op))
+    if (expr.op == "SEARCH")
+    {
+        int col_index = table_data.column_indices.at(expr.operands[0].input);
+        bool *local_flags = new bool[table_data.col_len];
+
+        if (expr.operands[1].literal.rangeSet.size() == 1) // range
+        {
+            int lower = std::stoi(expr.operands[1].literal.rangeSet[0][1]),
+                upper = std::stoi(expr.operands[1].literal.rangeSet[0][2]);
+
+            selection(local_flags,
+                      table_data.columns[col_index].content,
+                      ">=", lower, "NONE", table_data.col_len);
+            selection(table_data.flags,
+                      table_data.columns[col_index].content,
+                      "<=", upper, "AND", table_data.col_len);
+
+            for (int i = 0; i < table_data.col_len; i++)
+                table_data.flags[i] = logical(
+                    get_logical_op(parent_op),
+                    table_data.flags[i], local_flags[i]);
+        }
+        else // or between two values
+        {
+            int first = std::stoi(expr.operands[1].literal.rangeSet[0][1]),
+                second = std::stoi(expr.operands[1].literal.rangeSet[1][1]);
+
+            selection(local_flags,
+                      table_data.columns[col_index].content,
+                      "==", first, "NONE", table_data.col_len);
+            selection(table_data.flags,
+                      table_data.columns[col_index].content,
+                      "==", second, "OR", table_data.col_len);
+
+            for (int i = 0; i < table_data.col_len; i++)
+                table_data.flags[i] = logical(
+                    get_logical_op(parent_op),
+                    table_data.flags[i], local_flags[i]);
+        }
+        delete[] local_flags;
+    }
+    else if (is_filter_logical(expr.op))
     {
         // Logical operation between other expressions. Pass parent op to the first then use the current op.
         // TODO: check if passing parent logic is correct in general
@@ -426,8 +467,46 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
     }
     else
     {
-        // TODO
-        std::cout << "Aggregate operation with grouping is not implemented yet." << std::endl;
+        int **group_columns = new int *[group.size()];
+        for (int i = 0; i < group.size(); i++)
+            group_columns[i] = table_data.columns[table_data.column_indices.at(group[i])].content;
+        std::pair<int **, int> agg_res = group_by_aggregate(
+            group_columns,
+            table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
+            table_data.flags, group.size(), table_data.col_len, agg.agg);
+        delete[] group_columns;
+
+        // Free old columns and replace with the result columns
+        for (int i = 0; i < table_data.columns_size; i++)
+            if (table_data.columns[i].has_ownership)
+                delete[] table_data.columns[i].content;
+        delete[] table_data.columns;
+        delete[] table_data.flags;
+        table_data.column_indices.clear();
+
+        table_data.columns = new ColumnData<int>[group.size() + 1];
+        for (int i = 0; i < group.size(); i++)
+        {
+            table_data.columns[i].content = agg_res.first[i];
+            table_data.columns[i].has_ownership = true;
+            table_data.columns[i].is_aggregate_result = false;
+            table_data.columns[i].min_value = 0; // TODO: set real min value
+            table_data.columns[i].max_value = 0; //  TODO: set real max value
+            table_data.column_indices[i] = i;
+        }
+
+        table_data.columns[group.size()].content = agg_res.first[group.size()];
+        table_data.columns[group.size()].has_ownership = true;
+        table_data.columns[group.size()].is_aggregate_result = true;
+        table_data.columns[group.size()].content = agg_res.first[group.size()];
+        table_data.columns[group.size()].min_value = 0; // TODO: set real min value
+        table_data.columns[group.size()].max_value = 0; // TODO: set real max value
+        table_data.col_number = group.size() + 1;
+        table_data.columns_size = group.size() + 1;
+        table_data.col_len = agg_res.second;
+        table_data.flags = new bool[agg_res.second];
+        std::fill_n(table_data.flags, agg_res.second, true);
+        table_data.column_indices[group.size()] = group.size();
     }
 }
 
