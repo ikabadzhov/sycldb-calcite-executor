@@ -509,7 +509,8 @@ void execute_result(const PlanResult &result)
             return;
         }
         std::set<int>& column_idxs = exec_info.loaded_columns[rel.tables[0]];
-        tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]], column_idxs);
+        //tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]], column_idxs);
+        tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs);
         tables[current_table].table_name = rel.tables[0];
         output_table[rel.id] = current_table;
         current_table++;
