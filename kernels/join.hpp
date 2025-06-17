@@ -7,10 +7,10 @@ inline T HASH(T X, T Y, T Z)
 }
 
 template <typename T>
-void build_keys_ht(T col[], bool flags[], int col_len, bool ht[], T ht_max_value, T ht_min_value)
+void build_keys_ht(T col[], bool flags[], int col_len, bool ht[], T ht_len, T ht_min_value)
 {
     for (int i = 0; i < col_len; i++)
-        ht[HASH(col[i], ht_max_value, ht_min_value)] = flags[i];
+        ht[HASH(col[i], ht_len, ht_min_value)] = flags[i];
 }
 
 void build_key_vals_ht(int col[], bool flags[], int col_len, int ht[], int ht_max_value, int ht_min_value)
@@ -42,11 +42,15 @@ void filter_join(T build_col[],
     bool *ht = new bool[ht_len];
     std::fill_n(ht, ht_len, false);
 
-    build_keys_ht(build_col, build_flags, build_col_len, ht, build_max_value, build_min_value);
+    build_keys_ht(build_col, build_flags, build_col_len, ht, ht_len, build_min_value);
+
+    std::cout << "Filter join: build_col_len = " << build_col_len
+              << ", probe_col_len = " << probe_col_len
+              << ", ht_len = " << ht_len << std::endl;
 
     for (int i = 0; i < probe_col_len; i++)
         if (probe_col_flags[i])
-            probe_col_flags[i] = ht[HASH(probe_col[i], build_max_value, build_min_value)];
+            probe_col_flags[i] = ht[HASH(probe_col[i], ht_len, build_min_value)];
 
     delete[] ht;
 }
