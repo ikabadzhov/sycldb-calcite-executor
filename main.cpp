@@ -28,7 +28,7 @@ std::map<std::string, int> table_column_numbers({{"lineorder", 17},
 struct ExecutionInfo
 {
     std::map<std::string, std::set<int>> loaded_columns;
-    std::map<std::string, int> table_last_used;
+    std::map<std::string, int> table_last_used, group_by_columns;
 };
 
 void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
@@ -134,6 +134,7 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
                 info.loaded_columns[table_name].insert(col_index);
                 info.table_last_used[table_name] = rel.id;
                 op_info.push_back(std::make_tuple(table_name, col_index));
+                info.group_by_columns[table_name] = col_index;
             }
 
             for (const AggType &agg : rel.aggs)
@@ -337,6 +338,8 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             new_columns[i].has_ownership = true;
             new_columns[i].is_aggregate_result = table_data.columns[table_data.column_indices.at(exprs[i].input)].is_aggregate_result;
             table_data.columns[table_data.column_indices.at(exprs[i].input)].has_ownership = false;
+            if (exprs[i].input == table_data.group_by_column)
+                table_data.group_by_column = i; // update group by column index
             break;
         case ExprOption::LITERAL:
             // create a new column with the literal value
@@ -521,7 +524,6 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
                     right_table.columns[right_table.column_indices.at(right_column)].min_value,
                     left_table.columns[left_table.column_indices.at(left_column)].content,
                     left_table.flags, left_table.col_len);
-        left_table.col_number += right_table.col_number;
     }
     else if (left_table.table_name == "lineorder")
     {
@@ -530,8 +532,8 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
     else
     {
         std::cout << "Join operation Unsupported" << std::endl;
-        left_table.col_number += right_table.col_number;
     }
+    left_table.col_number += right_table.col_number;
 }
 
 void print_result(const TableData<int> &table_data)
@@ -564,6 +566,8 @@ void execute_result(const PlanResult &result)
             // TODO load real data
             tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
             tables[current_table].table_name = rel.tables[0];
+            if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
+                tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[0]];
             output_table[rel.id] = current_table;
             current_table++;
             break;
