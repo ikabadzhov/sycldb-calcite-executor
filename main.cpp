@@ -410,10 +410,10 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
     }
 
     // Free old columns and replace with new ones
-    for (int i = 0; i < table_data.columns_size; i++)
-        if (table_data.columns[i].has_ownership)
-            delete[] table_data.columns[i].content;
-    delete[] table_data.columns;
+    // for (int i = 0; i < table_data.columns_size; i++)
+    //     if (table_data.columns[i].has_ownership)
+    //         delete[] table_data.columns[i].content;
+    // delete[] table_data.columns;
 
     table_data.columns = new_columns;
     table_data.col_number = exprs.size();
