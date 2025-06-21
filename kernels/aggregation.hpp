@@ -60,8 +60,8 @@ void aggregate_operation(U &result, const T a[], bool flags[], int size, const s
 std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
 {
     int *max_values = new int[col_num],
-        *min_values = new int[col_num],
-        prod_ranges = 1;
+        *min_values = new int[col_num];
+    unsigned long long prod_ranges = 1;
 
     for (int i = 0; i < col_num; i++)
     {
@@ -79,9 +79,9 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
         prod_ranges *= max - min + 1;
     }
 
-    int *ht = new int[prod_ranges * (col_num + 2)]();
+    int *ht = new int[prod_ranges * (col_num + 2)], result_size = 0;
     std::set<int> hash_set;
-    std::vector<std::vector<int>> result_groups;
+    std::vector<int> result_groups;
 
     for (int i = 0; i < col_len; i++)
     {
@@ -99,14 +99,13 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
 
             if (inserted)
             {
-                std::vector<int> group;
-                group.reserve(col_num);
+                result_size++;
                 for (int j = 0; j < col_num; j++)
                 {
-                    group.push_back(group_columns[j][i]);
+                    result_groups.push_back(group_columns[j][i]);
                     ht[hash * (col_num + 2) + j] = group_columns[j][i];
                 }
-                result_groups.push_back(group);
+                *((uint64_t *)&ht[hash * (col_num + 2) + col_num]) = 0;
             }
 
             if (agg_op == "SUM")
@@ -118,24 +117,24 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
         }
     }
 
-    int result_size = result_groups.size(), **results = new int *[col_num + 1];
+    int **results = new int *[col_num + 1];
 
     for (int i = 0; i < col_num; i++)
         results[i] = new int[result_size];
-    results[col_num] = new int[result_size * (sizeof(uint64_t) / sizeof(int))];
+    results[col_num] = (int *)new uint64_t[result_size];
 
     for (int i = 0; i < result_size; i++)
     {
         int hash = 0, mult = 1;
         for (int j = 0; j < col_num; j++)
         {
-            results[j][i] = result_groups[i][j];
-            hash += (result_groups[i][j] - min_values[j]) * mult;
+            results[j][i] = result_groups[i * col_num + j];
+            hash += (result_groups[i * col_num + j] - min_values[j]) * mult;
             mult *= max_values[j] - min_values[j] + 1;
         }
         hash %= prod_ranges;
 
-        ((uint64_t *)&results[col_num])[i] = *((uint64_t *)&ht[hash * (col_num + 2) + col_num]);
+        ((uint64_t *)results[col_num])[i] = *((uint64_t *)&ht[hash * (col_num + 2) + col_num]);
     }
 
     delete[] ht;
