@@ -435,12 +435,12 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
                             table_data.flags, table_data.col_len, agg.agg);
 
         // Free old columns and replace with the result column
-        for (int i = 0; i < table_data.columns_size; i++)
+        /*for (int i = 0; i < table_data.columns_size; i++)
             if (table_data.columns[i].has_ownership)
                 delete[] table_data.columns[i].content;
         delete[] table_data.columns;
         delete[] table_data.flags;
-        table_data.column_indices.clear();
+        table_data.column_indices.clear();*/
 
         table_data.columns = new ColumnData<int>[1];
         table_data.columns[0].content = new int[sizeof(unsigned long long) / sizeof(int)];
@@ -468,12 +468,12 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         delete[] group_columns;
 
         // Free old columns and replace with the result columns
-        for (int i = 0; i < table_data.columns_size; i++)
+        /*for (int i = 0; i < table_data.columns_size; i++)
             if (table_data.columns[i].has_ownership)
                 delete[] table_data.columns[i].content;
         delete[] table_data.columns;
         delete[] table_data.flags;
-        table_data.column_indices.clear();
+        table_data.column_indices.clear();*/
 
         table_data.columns = new ColumnData<int>[group.size() + 1];
         for (int i = 0; i < group.size(); i++)
@@ -559,17 +559,29 @@ void execute_result(const PlanResult &result)
 
     for (const RelNode &rel : result.rels)
     {
+        if (rel.relOp != RelNodeType::TABLE_SCAN)
+            continue;
+        std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
+        if (exec_info.loaded_columns.find(rel.tables[0]) == exec_info.loaded_columns.end())
+        {
+            std::cout << "Table " << rel.tables[0] << " was never loaded." << std::endl;
+            return;
+        }
+        std::set<int>& column_idxs = exec_info.loaded_columns[rel.tables[0]];
+        //tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
+        tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs);
+        tables[current_table].table_name = rel.tables[0];
+        if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
+            tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[0]];
+        output_table[rel.id] = current_table;
+        current_table++;
+    }
+
+    for (const RelNode &rel : result.rels)
+    {
         switch (rel.relOp)
         {
         case RelNodeType::TABLE_SCAN:
-            std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
-            // TODO load real data
-            tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
-            tables[current_table].table_name = rel.tables[0];
-            if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
-                tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[0]];
-            output_table[rel.id] = current_table;
-            current_table++;
             break;
         case RelNodeType::FILTER:
             // std::cout << "Filter condition: " << rel.condition << std::endl;
@@ -599,7 +611,7 @@ void execute_result(const PlanResult &result)
 
     print_result(tables[output_table[result.rels.size() - 1]]);
 
-    for (int i = 0; i < current_table; i++)
+    /*for (int i = 0; i < current_table; i++)
     {
         delete[] tables[i].flags;
         for (int j = 0; j < tables[i].columns_size; j++)
@@ -607,7 +619,7 @@ void execute_result(const PlanResult &result)
                 delete[] tables[i].columns[j].content;
         delete[] tables[i].columns;
     }
-    delete[] output_table;
+    delete[] output_table;*/
 }
 
 int main(int argc, char **argv)
