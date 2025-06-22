@@ -1,0 +1,296 @@
+Q11
+>>> COLD RUN
+>>> FILTER took: 120.931 ms.
+>>> FILTER took: 3.88427 ms.
+>>> FILTER took: 90.7186 ms.
+>>> FILTER took: 4.01318 ms.
+>>> FILTER took: 91.3042 ms.
+>>> HOT RUN1
+>>> FILTER took: 128.183 ms.
+>>> FILTER took: 4.73628 ms.
+>>> FILTER took: 90.2703 ms.
+>>> FILTER took: 3.4391 ms.
+>>> FILTER took: 89.9793 ms.
+>>> HOT RUN2
+>>> FILTER took: 125.463 ms.
+>>> FILTER took: 4.74653 ms.
+>>> FILTER took: 91.07 ms.
+>>> FILTER took: 3.7381 ms.
+>>> FILTER took: 90.5028 ms.
+Q12
+>>> COLD RUN
+>>> FILTER took: 124.529 ms.
+>>> FILTER took: 4.73802 ms.
+>>> FILTER took: 90.8373 ms.
+>>> FILTER took: 3.59272 ms.
+>>> FILTER took: 90.0106 ms.
+>>> FILTER took: 3.42792 ms.
+>>> HOT RUN1
+>>> FILTER took: 120.31 ms.
+>>> FILTER took: 4.7363 ms.
+>>> FILTER took: 101.306 ms.
+>>> FILTER took: 3.461 ms.
+>>> FILTER took: 90.3972 ms.
+>>> FILTER took: 3.44864 ms.
+>>> HOT RUN2
+>>> FILTER took: 118.99 ms.
+>>> FILTER took: 4.74069 ms.
+>>> FILTER took: 90.2772 ms.
+>>> FILTER took: 4.72092 ms.
+>>> FILTER took: 90.2506 ms.
+>>> FILTER took: 3.45944 ms.
+Q13
+>>> COLD RUN
+>>> FILTER took: 120.601 ms.
+>>> FILTER took: 4.73412 ms.
+>>> FILTER took: 100.429 ms.
+>>> FILTER took: 4.88107 ms.
+>>> FILTER took: 100.672 ms.
+>>> FILTER took: 3.46354 ms.
+>>> HOT RUN1
+>>> FILTER took: 129.507 ms.
+>>> FILTER took: 4.74699 ms.
+>>> FILTER took: 90.4538 ms.
+>>> FILTER took: 3.46302 ms.
+>>> FILTER took: 90.3992 ms.
+>>> FILTER took: 3.44907 ms.
+>>> HOT RUN2
+>>> FILTER took: 120.25 ms.
+>>> FILTER took: 3.48154 ms.
+>>> FILTER took: 90.5461 ms.
+>>> FILTER took: 3.45543 ms.
+>>> FILTER took: 89.807 ms.
+>>> FILTER took: 3.44429 ms.
+Q21
+>>> COLD RUN
+>>> FILTER took: 4.20724 ms.
+>>> BUILD took: 5.85649 ms.
+>>> PROBE took: 128.891 ms.
+>>> FILTER took: 0.049589 ms.
+>>> BUILD took: 0.140325 ms.
+>>> PROBE took: 85.9461 ms.
+>>> BUILD took: 0.346703 ms.
+>>> PROBE took: 85.3178 ms.
+>>> HOT RUN1
+>>> FILTER took: 2.63249 ms.
+>>> BUILD took: 6.11784 ms.
+>>> PROBE took: 116.544 ms.
+>>> FILTER took: 0.204983 ms.
+>>> BUILD took: 0.14221 ms.
+>>> PROBE took: 85.6651 ms.
+>>> BUILD took: 0.155379 ms.
+>>> PROBE took: 84.9728 ms.
+>>> HOT RUN2
+>>> FILTER took: 2.63569 ms.
+Q22
+>>> COLD RUN
+>>> FILTER took: 3.82948 ms.
+>>> FILTER took: 0.507867 ms.
+Q23
+>>> COLD RUN
+>>> FILTER took: 4.18477 ms.
+>>> BUILD took: 1.80174 ms.
+>>> PROBE took: 129.164 ms.
+>>> FILTER took: 0.045341 ms.
+>>> BUILD took: 0.101298 ms.
+>>> PROBE took: 78.081 ms.
+>>> BUILD took: 0.211997 ms.
+>>> PROBE took: 65.4974 ms.
+>>> HOT RUN1
+>>> FILTER took: 2.2959 ms.
+>>> BUILD took: 1.62061 ms.
+>>> PROBE took: 118.192 ms.
+>>> FILTER took: 0.167826 ms.
+>>> BUILD took: 0.14045 ms.
+>>> PROBE took: 78.0398 ms.
+>>> BUILD took: 0.160592 ms.
+>>> PROBE took: 67.2785 ms.
+>>> HOT RUN2
+>>> FILTER took: 2.54304 ms.
+Q31
+>>> COLD RUN
+>>> FILTER took: 3.63479 ms.
+>>> BUILD took: 3.69866 ms.
+>>> PROBE took: 125.512 ms.
+>>> FILTER took: 0.060602 ms.
+>>> BUILD took: 0.206688 ms.
+>>> PROBE took: 86.7108 ms.
+>>> FILTER took: 0.075404 ms.
+>>> FILTER took: 0.018587 ms.
+>>> BUILD took: 0.212539 ms.
+>>> PROBE took: 85.2931 ms.
+>>> HOT RUN1
+>>> FILTER took: 1.75864 ms.
+>>> BUILD took: 3.57849 ms.
+>>> PROBE took: 118.938 ms.
+>>> FILTER took: 0.146306 ms.
+>>> BUILD took: 0.143315 ms.
+>>> PROBE took: 98.6852 ms.
+>>> FILTER took: 0.027362 ms.
+>>> FILTER took: 0.035293 ms.
+>>> BUILD took: 0.166726 ms.
+>>> PROBE took: 85.635 ms.
+>>> HOT RUN2
+>>> FILTER took: 2.06206 ms.
+Q32
+>>> COLD RUN
+>>> FILTER took: 3.76255 ms.
+>>> BUILD took: 3.62191 ms.
+>>> PROBE took: 125.241 ms.
+>>> FILTER took: 0.050285 ms.
+>>> BUILD took: 0.174657 ms.
+>>> PROBE took: 86.1167 ms.
+>>> FILTER took: 0.073776 ms.
+>>> FILTER took: 0.018152 ms.
+>>> BUILD took: 0.229868 ms.
+>>> PROBE took: 74.6822 ms.
+>>> HOT RUN1
+>>> FILTER took: 1.97296 ms.
+>>> BUILD took: 3.85193 ms.
+>>> PROBE took: 116.364 ms.
+>>> FILTER took: 0.141479 ms.
+>>> BUILD took: 0.149716 ms.
+>>> PROBE took: 87.2182 ms.
+>>> FILTER took: 0.029127 ms.
+>>> FILTER took: 0.0338 ms.
+>>> BUILD took: 0.195068 ms.
+>>> PROBE took: 76.2541 ms.
+>>> HOT RUN2
+>>> FILTER took: 1.97577 ms.
+Q33
+>>> COLD RUN
+>>> FILTER took: 3.23314 ms.
+>>> FILTER took: 0.625743 ms.
+Q34
+>>> COLD RUN
+>>> FILTER took: 3.16836 ms.
+>>> FILTER took: 0.617869 ms.
+Q41
+>>> COLD RUN
+>>> FILTER took: 2.48339 ms.
+>>> BUILD took: 0.517351 ms.
+>>> PROBE took: 129.057 ms.
+>>> FILTER took: 0.821185 ms.
+>>> BUILD took: 1.75663 ms.
+>>> PROBE took: 87.8716 ms.
+>>> FILTER took: 0.898713 ms.
+>>> FILTER took: 0.203336 ms.
+>>> BUILD took: 1.5893 ms.
+>>> PROBE took: 87.3524 ms.
+>>> BUILD took: 0.440944 ms.
+>>> PROBE took: 113.171 ms.
+>>> HOT RUN1
+>>> FILTER took: 0.753466 ms.
+>>> BUILD took: 0.378874 ms.
+>>> PROBE took: 116.989 ms.
+>>> FILTER took: 0.65615 ms.
+>>> BUILD took: 1.83275 ms.
+>>> PROBE took: 88.1685 ms.
+>>> FILTER took: 0.913763 ms.
+>>> FILTER took: 0.192305 ms.
+>>> BUILD took: 1.67711 ms.
+>>> PROBE took: 90.2162 ms.
+>>> BUILD took: 0.372199 ms.
+>>> PROBE took: 112.738 ms.
+>>> HOT RUN2
+>>> FILTER took: 0.660473 ms.
+>>> BUILD took: 0.397919 ms.
+>>> PROBE took: 119.479 ms.
+>>> FILTER took: 0.776013 ms.
+>>> BUILD took: 1.69991 ms.
+>>> PROBE took: 88.154 ms.
+>>> FILTER took: 0.881547 ms.
+>>> FILTER took: 0.191271 ms.
+>>> BUILD took: 1.56771 ms.
+>>> PROBE took: 89.1469 ms.
+>>> BUILD took: 0.39024 ms.
+>>> PROBE took: 114.525 ms.
+Q42
+>>> COLD RUN
+>>> FILTER took: 3.63272 ms.
+>>> BUILD took: 1.52633 ms.
+>>> PROBE took: 128.458 ms.
+>>> FILTER took: 0.040783 ms.
+>>> BUILD took: 0.210268 ms.
+>>> PROBE took: 86.2 ms.
+>>> FILTER took: 0.844254 ms.
+>>> FILTER took: 0.258308 ms.
+>>> BUILD took: 3.86503 ms.
+>>> PROBE took: 89.3304 ms.
+>>> FILTER took: 0.121782 ms.
+>>> FILTER took: 0.020331 ms.
+>>> BUILD took: 0.629206 ms.
+>>> PROBE took: 114.511 ms.
+>>> HOT RUN1
+>>> FILTER took: 1.67282 ms.
+>>> BUILD took: 1.79719 ms.
+>>> PROBE took: 116.122 ms.
+>>> FILTER took: 0.19122 ms.
+>>> BUILD took: 0.152752 ms.
+>>> PROBE took: 85.4306 ms.
+>>> FILTER took: 0.916332 ms.
+>>> FILTER took: 0.232522 ms.
+>>> BUILD took: 3.94181 ms.
+>>> PROBE took: 89.3387 ms.
+>>> FILTER took: 0.047776 ms.
+>>> FILTER took: 0.01738 ms.
+>>> BUILD took: 0.469322 ms.
+>>> PROBE took: 111.443 ms.
+>>> HOT RUN2
+>>> FILTER took: 1.80526 ms.
+>>> BUILD took: 1.74666 ms.
+>>> PROBE took: 117.918 ms.
+>>> FILTER took: 0.02933 ms.
+>>> BUILD took: 0.14065 ms.
+>>> PROBE took: 85.8561 ms.
+>>> FILTER took: 0.889771 ms.
+>>> FILTER took: 0.231722 ms.
+>>> BUILD took: 3.522 ms.
+>>> PROBE took: 87.1985 ms.
+>>> FILTER took: 0.052024 ms.
+>>> FILTER took: 0.30318 ms.
+>>> BUILD took: 0.365214 ms.
+>>> PROBE took: 114.176 ms.
+Q43
+>>> COLD RUN
+>>> FILTER took: 2.46554 ms.
+>>> BUILD took: 0.960728 ms.
+>>> PROBE took: 122.158 ms.
+>>> FILTER took: 0.772007 ms.
+>>> BUILD took: 0.779966 ms.
+>>> PROBE took: 97.184 ms.
+>>> FILTER took: 1.12205 ms.
+>>> BUILD took: 2.86673 ms.
+>>> PROBE took: 85.8994 ms.
+>>> FILTER took: 0.100967 ms.
+>>> FILTER took: 0.019458 ms.
+>>> BUILD took: 0.463754 ms.
+>>> PROBE took: 98.4983 ms.
+>>> HOT RUN1
+>>> FILTER took: 0.679444 ms.
+>>> BUILD took: 0.480604 ms.
+>>> PROBE took: 121.593 ms.
+>>> FILTER took: 0.719273 ms.
+>>> BUILD took: 0.809279 ms.
+>>> PROBE took: 97.8459 ms.
+>>> FILTER took: 0.984446 ms.
+>>> BUILD took: 2.97657 ms.
+>>> PROBE took: 85.9713 ms.
+>>> FILTER took: 0.260826 ms.
+>>> FILTER took: 0.020475 ms.
+>>> BUILD took: 0.383894 ms.
+>>> PROBE took: 99.8605 ms.
+>>> HOT RUN2
+>>> FILTER took: 0.79934 ms.
+>>> BUILD took: 0.349044 ms.
+>>> PROBE took: 119.997 ms.
+>>> FILTER took: 0.732949 ms.
+>>> BUILD took: 0.891483 ms.
+>>> PROBE took: 87.1196 ms.
+>>> FILTER took: 0.979316 ms.
+>>> BUILD took: 3.00818 ms.
+>>> PROBE took: 85.883 ms.
+>>> FILTER took: 0.046771 ms.
+>>> FILTER took: 0.017869 ms.
+>>> BUILD took: 0.501924 ms.
+>>> PROBE took: 100.488 ms.
