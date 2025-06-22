@@ -65,14 +65,17 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
 
     for (int i = 0; i < col_num; i++)
     {
-        int min = group_columns[i][0],
-            max = group_columns[i][0];
-        for (int j = 1; j < col_len; j++)
+        int min = INT_MAX,
+            max = INT_MIN;
+        for (int j = 0; j < col_len; j++)
         {
-            if (group_columns[i][j] < min)
-                min = group_columns[i][j];
-            else if (group_columns[i][j] > max)
-                max = group_columns[i][j];
+            if (flags[j])
+            {
+                if (group_columns[i][j] < min)
+                    min = group_columns[i][j];
+                else if (group_columns[i][j] > max)
+                    max = group_columns[i][j];
+            }
         }
         min_values[i] = min;
         max_values[i] = max;
