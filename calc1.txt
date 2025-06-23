@@ -1,0 +1,249 @@
+Q11
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 2.03431 ms.
+>>> FILTER took: 2.05645 ms.
+>>> FILTER took: 2.07246 ms.
+>>> FILTER took: 2.05199 ms.
+>>> FILTER took: 2.06907 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 1.17539 ms.
+>>> FILTER took: 1.65388 ms.
+>>> FILTER took: 1.67557 ms.
+>>> FILTER took: 1.656 ms.
+>>> FILTER took: 1.67809 ms.
+Q12
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 1.83764 ms.
+>>> FILTER took: 1.66958 ms.
+>>> FILTER took: 1.67949 ms.
+>>> FILTER took: 1.65911 ms.
+>>> FILTER took: 1.67774 ms.
+>>> FILTER took: 1.65167 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 1.24867 ms.
+>>> FILTER took: 1.665 ms.
+>>> FILTER took: 1.68008 ms.
+>>> FILTER took: 1.65409 ms.
+>>> FILTER took: 1.67626 ms.
+>>> FILTER took: 1.65263 ms.
+Q13
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 2.06004 ms.
+>>> FILTER took: 2.05965 ms.
+>>> FILTER took: 2.07577 ms.
+>>> FILTER took: 2.05491 ms.
+>>> FILTER took: 2.07179 ms.
+>>> FILTER took: 2.04423 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 1.17362 ms.
+>>> FILTER took: 1.65707 ms.
+>>> FILTER took: 1.67418 ms.
+>>> FILTER took: 1.64759 ms.
+>>> FILTER took: 1.66637 ms.
+>>> FILTER took: 1.64584 ms.
+Q21
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.682162 ms.
+>>> BUILD took: 3.19191 ms.
+>>> PROBE took: 3.85719 ms.
+>>> FILTER took: 0.040816 ms.
+>>> BUILD took: 0.555898 ms.
+>>> PROBE took: 1.92934 ms.
+>>> BUILD took: 0.398056 ms.
+>>> PROBE took: 1.36967 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.124468 ms.
+>>> BUILD took: 3.29554 ms.
+>>> PROBE took: 3.76894 ms.
+>>> FILTER took: 0.035822 ms.
+>>> BUILD took: 0.329806 ms.
+>>> PROBE took: 1.89567 ms.
+>>> BUILD took: 0.368775 ms.
+>>> PROBE took: 1.37205 ms.
+Q22
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.671808 ms.
+>>> FILTER took: 0.041341 ms.
+Q23
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.664854 ms.
+>>> BUILD took: 1.89784 ms.
+>>> PROBE took: 3.61503 ms.
+>>> FILTER took: 0.164993 ms.
+>>> BUILD took: 0.4901 ms.
+>>> PROBE took: 1.22643 ms.
+>>> BUILD took: 0.437883 ms.
+>>> PROBE took: 1.13666 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.056403 ms.
+>>> BUILD took: 1.6796 ms.
+>>> PROBE took: 2.72299 ms.
+>>> FILTER took: 0.036776 ms.
+>>> BUILD took: 0.440219 ms.
+>>> PROBE took: 1.01233 ms.
+>>> BUILD took: 0.35622 ms.
+>>> PROBE took: 0.835632 ms.
+Q31
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.669796 ms.
+>>> BUILD took: 2.18801 ms.
+>>> PROBE took: 4.29043 ms.
+>>> FILTER took: 0.040415 ms.
+>>> BUILD took: 0.494607 ms.
+>>> PROBE took: 2.8271 ms.
+>>> FILTER took: 0.065774 ms.
+>>> FILTER took: 0.025906 ms.
+>>> BUILD took: 0.428246 ms.
+>>> PROBE took: 2.45475 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.060653 ms.
+>>> BUILD took: 2.0229 ms.
+>>> PROBE took: 4.26059 ms.
+>>> FILTER took: 0.033352 ms.
+>>> BUILD took: 0.350697 ms.
+>>> PROBE took: 2.82355 ms.
+>>> FILTER took: 0.022991 ms.
+>>> FILTER took: 0.015193 ms.
+>>> BUILD took: 0.346551 ms.
+>>> PROBE took: 2.44212 ms.
+Q32
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.654432 ms.
+>>> BUILD took: 2.0558 ms.
+>>> PROBE took: 3.92915 ms.
+>>> FILTER took: 0.039835 ms.
+>>> BUILD took: 0.515941 ms.
+>>> PROBE took: 1.88992 ms.
+>>> FILTER took: 0.067183 ms.
+>>> FILTER took: 0.028711 ms.
+>>> BUILD took: 0.424348 ms.
+>>> PROBE took: 1.26682 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.052144 ms.
+>>> BUILD took: 2.07037 ms.
+>>> PROBE took: 3.49422 ms.
+>>> FILTER took: 0.034682 ms.
+>>> BUILD took: 0.340358 ms.
+>>> PROBE took: 1.4898 ms.
+>>> FILTER took: 0.019219 ms.
+>>> FILTER took: 0.014986 ms.
+>>> BUILD took: 0.336398 ms.
+>>> PROBE took: 0.978506 ms.
+Q33
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.675804 ms.
+>>> FILTER took: 0.041248 ms.
+Q34
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.654569 ms.
+>>> FILTER took: 0.041739 ms.
+Q41
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.799158 ms.
+>>> BUILD took: 0.879685 ms.
+>>> PROBE took: 2.67834 ms.
+>>> FILTER took: 0.040978 ms.
+>>> BUILD took: 2.01835 ms.
+>>> PROBE took: 3.83556 ms.
+>>> FILTER took: 0.050754 ms.
+>>> FILTER took: 0.039909 ms.
+>>> BUILD took: 2.869 ms.
+>>> PROBE took: 2.30319 ms.
+>>> BUILD took: 1.38627 ms.
+>>> PROBE took: 1.38378 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.049005 ms.
+>>> BUILD took: 0.65154 ms.
+>>> PROBE took: 2.64274 ms.
+>>> FILTER took: 0.044554 ms.
+>>> BUILD took: 1.89009 ms.
+>>> PROBE took: 3.81489 ms.
+>>> FILTER took: 0.056646 ms.
+>>> FILTER took: 0.043066 ms.
+>>> BUILD took: 2.85524 ms.
+>>> PROBE took: 2.30037 ms.
+>>> BUILD took: 0.376829 ms.
+>>> PROBE took: 1.36533 ms.
+Q42
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.798416 ms.
+>>> BUILD took: 1.95561 ms.
+>>> PROBE took: 2.51106 ms.
+>>> FILTER took: 0.029114 ms.
+>>> BUILD took: 0.480909 ms.
+>>> PROBE took: 2.65776 ms.
+>>> FILTER took: 0.049734 ms.
+>>> FILTER took: 0.035715 ms.
+>>> BUILD took: 3.27834 ms.
+>>> PROBE took: 2.63418 ms.
+>>> FILTER took: 0.152612 ms.
+>>> FILTER took: 0.019394 ms.
+>>> BUILD took: 0.461288 ms.
+>>> PROBE took: 1.41563 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.061801 ms.
+>>> BUILD took: 1.67009 ms.
+>>> PROBE took: 2.47315 ms.
+>>> FILTER took: 0.038649 ms.
+>>> BUILD took: 0.606272 ms.
+>>> PROBE took: 2.80793 ms.
+>>> FILTER took: 0.045566 ms.
+>>> FILTER took: 0.034893 ms.
+>>> BUILD took: 3.34056 ms.
+>>> PROBE took: 2.33067 ms.
+>>> FILTER took: 0.046725 ms.
+>>> FILTER took: 0.017248 ms.
+>>> BUILD took: 0.291388 ms.
+>>> PROBE took: 1.62221 ms.
+Q43
+>>> COLD RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.697065 ms.
+>>> BUILD took: 0.771343 ms.
+>>> PROBE took: 3.99893 ms.
+>>> FILTER took: 0.040056 ms.
+>>> BUILD took: 1.58594 ms.
+>>> PROBE took: 2.44175 ms.
+>>> FILTER took: 0.053565 ms.
+>>> BUILD took: 2.83509 ms.
+>>> PROBE took: 1.42805 ms.
+>>> FILTER took: 0.111778 ms.
+>>> FILTER took: 1.04133 ms.
+>>> BUILD took: 0.47838 ms.
+>>> PROBE took: 0.852404 ms.
+>>> HOT RUN
+>>> Running on: NVIDIA GeForce RTX 2080 Ti
+>>> FILTER took: 0.143019 ms.
+>>> BUILD took: 0.478683 ms.
+>>> PROBE took: 3.935 ms.
+>>> FILTER took: 0.033296 ms.
+>>> BUILD took: 1.78092 ms.
+>>> PROBE took: 2.40458 ms.
+>>> FILTER took: 0.045441 ms.
+>>> BUILD took: 2.97098 ms.
+>>> PROBE took: 1.76804 ms.
+>>> FILTER took: 0.047138 ms.
+>>> FILTER took: 0.02986 ms.
+>>> BUILD took: 0.507386 ms.
+>>> PROBE took: 0.853005 ms.

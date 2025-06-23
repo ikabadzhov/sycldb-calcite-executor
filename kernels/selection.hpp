@@ -91,6 +91,8 @@ void selection(bool flags[], T arr[], std::string op, T value, std::string paren
 
     //for (int i = 0; i < col_len; i++)
     //    flags[i] = logical(logic, flags[i], compare(comparison, arr[i], value));
+    queue.prefetch(flags, col_len * sizeof(bool));
+    queue.prefetch(arr, col_len * sizeof(T));
     queue.wait();
     auto start = std::chrono::high_resolution_clock::now();
     queue.parallel_for(col_len, [=](sycl::id<1> idx) {

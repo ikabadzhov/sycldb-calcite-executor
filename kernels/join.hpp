@@ -69,6 +69,8 @@ void filter_join(T build_col[],
     //for (int i = 0; i < probe_col_len; i++)
     //    if (probe_col_flags[i])
     //        probe_col_flags[i] = ht[HASH(probe_col[i], ht_len, build_min_value)];
+    queue.prefetch(probe_col, probe_col_len * sizeof(T));
+    queue.prefetch(probe_col_flags, probe_col_len * sizeof(bool));
     queue.wait();
     start = std::chrono::high_resolution_clock::now();
     queue.parallel_for(probe_col_len, [=](sycl::id<1> idx) {
@@ -98,6 +100,12 @@ void full_join(TableData<int> &probe_table,
     int probe_column = probe_table.column_indices.at(probe_col_index);
 
     std::fill_n(ht, ht_len * 2, 0); // maybe it's not necessary to initialize
+
+    queue.prefetch(build_table.columns[build_column].content, build_table.col_len * sizeof(int));
+    queue.prefetch(build_table.columns[build_table.column_indices.at(build_table.group_by_column)].
+                    content, build_table.col_len * sizeof(int));
+    queue.prefetch(probe_table.columns[probe_column].content, probe_table.col_len * sizeof(int));
+    queue.prefetch(probe_table.flags, probe_table.col_len * sizeof(bool));
 
     queue.wait();
     auto start = std::chrono::high_resolution_clock::now();

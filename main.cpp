@@ -565,7 +565,7 @@ void print_result(const TableData<int> &table_data)
 void execute_result(const PlanResult &result)
 {
     sycl::queue queue{sycl::gpu_selector_v};
-    std::cout << "Running on: " << queue.get_device().get_info<sycl::info::device::name>() << std::endl;
+    std::cout << ">>> Running on: " << queue.get_device().get_info<sycl::info::device::name>() << std::endl;
 
     TableData<int> tables[MAX_NTABLES];
     int current_table = 0,
@@ -691,9 +691,7 @@ int main(int argc, char **argv)
 
         std::cout << ">>> COLD RUN" << std::endl; 
         execute_result(result);
-        std::cout << ">>> HOT RUN1" << std::endl;
-        execute_result(result);
-        std::cout << ">>> HOT RUN2" << std::endl;
+        std::cout << ">>> HOT RUN" << std::endl;
         execute_result(result);
 
         client.shutdown();
