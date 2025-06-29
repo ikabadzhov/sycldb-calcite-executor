@@ -237,7 +237,7 @@ void parse_filter(const ExprType &expr,
             selection(local_flags,
                       table_data.columns[col_index].content,
                       ">=", lower, "NONE", table_data.col_len);
-            selection(table_data.flags,
+            selection(local_flags,
                       table_data.columns[col_index].content,
                       "<=", upper, "AND", table_data.col_len);
 
