@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <deque>
 
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TSocket.h>
@@ -29,6 +30,7 @@ struct ExecutionInfo
 {
     std::map<std::string, std::set<int>> loaded_columns;
     std::map<std::string, int> table_last_used, group_by_columns;
+    std::vector<int> dag_order;
 };
 
 void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
@@ -38,6 +40,98 @@ void parse_expression_columns(const ExprType &expr, std::set<int> &columns)
     else if (expr.exprType == ExprOption::EXPR)
         for (const ExprType &operand : expr.operands)
             parse_expression_columns(operand, columns);
+}
+
+std::vector<int> dag_topological_sort(const PlanResult &result)
+{
+    int **dag = new int *[result.rels.size()];
+    std::deque<int> S;
+    for (int i = 0; i < result.rels.size(); i++)
+    {
+        dag[i] = new int[result.rels.size()];
+        std::fill_n(dag[i], result.rels.size(), 0);
+    }
+
+    for (const RelNode &rel : result.rels)
+    {
+        switch (rel.relOp)
+        {
+        case RelNodeType::TABLE_SCAN:
+            S.push_front(rel.id); // push the table scan operation to the list of nodes without inbound edges
+            break;
+        case RelNodeType::FILTER:
+        case RelNodeType::PROJECT:
+        case RelNodeType::AGGREGATE:
+            dag[rel.id - 1][rel.id] = 1; // connect to the previous operation
+            break;
+        case RelNodeType::JOIN:
+            if (rel.inputs.size() != 2)
+            {
+                std::cerr << "Join operation: Invalid number of inputs." << std::endl;
+                return std::vector<int>();
+            }
+            dag[rel.inputs[0]][rel.id] = 1; // connect left input to the join
+            dag[rel.inputs[1]][rel.id] = 1; // connect right input to the join
+            break;
+        default:
+            std::cerr << "Unsupported RelNodeType: " << rel.relOp << std::endl;
+            return std::vector<int>();
+        }
+    }
+
+    // Topological sort of the DAG
+    std::vector<int> sorted;
+    sorted.reserve(result.rels.size());
+    int delayed = 0;
+
+    while (!S.empty())
+    {
+        int node = S.back();
+        S.pop_back();
+
+        if (delayed < 2 &&
+            result.rels[node].relOp == RelNodeType::TABLE_SCAN &&
+            result.rels[node].tables[0] == "lineorder")
+        {
+            S.push_front(node);
+            delayed++;
+            continue;
+        }
+        sorted.push_back(node);
+
+        for (int i = 0; i < result.rels.size(); i++)
+        {
+            if (dag[node][i] == 1) // if there is an edge from node to i
+            {
+                dag[node][i] = 0; // remove the edge
+
+                // check if there are any inbound edges to i
+                bool has_inbound_edges = false;
+
+                for (int j = 0; j < result.rels.size(); j++)
+                {
+                    if (dag[j][i] == 1)
+                    {
+                        has_inbound_edges = true;
+                        break;
+                    }
+                }
+
+                if (!has_inbound_edges)
+                    S.push_front(i); // push to the list of nodes without inbound edges
+            }
+        }
+    }
+
+    for (int i = 0; i < result.rels.size(); i++)
+        delete[] dag[i];
+    delete[] dag;
+    if (sorted.size() != result.rels.size())
+    {
+        std::cerr << "DAG topological sort failed: not all nodes were sorted." << std::endl;
+        return std::vector<int>();
+    }
+    return sorted;
 }
 
 // initially parse the data structure in order to find all columns used and the last time each table was used
@@ -199,6 +293,8 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
             break;
         }
     }
+
+    info.dag_order = dag_topological_sort(result);
 
     return info;
 }
@@ -567,8 +663,8 @@ void execute_result(const PlanResult &result)
             std::cout << "Table " << rel.tables[0] << " was never loaded." << std::endl;
             return;
         }
-        std::set<int>& column_idxs = exec_info.loaded_columns[rel.tables[0]];
-        //tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
+        std::set<int> &column_idxs = exec_info.loaded_columns[rel.tables[0]];
+        // tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
         tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs);
         tables[current_table].table_name = rel.tables[0];
         if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
@@ -577,8 +673,9 @@ void execute_result(const PlanResult &result)
         current_table++;
     }
 
-    for (const RelNode &rel : result.rels)
+    for (int id : exec_info.dag_order)
     {
+        const RelNode &rel = result.rels[id];
         switch (rel.relOp)
         {
         case RelNodeType::TABLE_SCAN:
