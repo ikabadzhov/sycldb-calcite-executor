@@ -67,7 +67,7 @@ bool is_in_set(int *set, int value, int set_len)
     return false;
 }
 
-std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
+std::tuple<int **, unsigned long long, bool *> group_by_aggregate(int **group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
 {
     int *max_values = new int[col_num],
         *min_values = new int[col_num];
@@ -92,14 +92,12 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
         prod_ranges *= max - min + 1;
     }
 
-    int *ht = new int[prod_ranges * (col_num + 2)],
-        result_size = 0,
-        *hash_set = new int[HASH_SET_LEN],
-        **results = new int *[col_num + 1];
+    int **results = new int *[col_num + 1];
 
     for (int i = 0; i < col_num; i++)
-        results[i] = new int[HASH_SET_LEN];
-    results[col_num] = (int *)new uint64_t[HASH_SET_LEN];
+        results[i] = new int[prod_ranges];
+    results[col_num] = (int *)new uint64_t[prod_ranges];
+    bool *res_flags = new bool[prod_ranges]();
 
     for (int i = 0; i < col_len; i++)
     {
@@ -113,22 +111,12 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
             }
             hash %= prod_ranges;
 
-            bool insert = !is_in_set(hash_set, hash, result_size);
-
-            if (insert)
-            {
-                hash_set[result_size] = hash;
-                for (int j = 0; j < col_num; j++)
-                {
-                    results[j][result_size] = group_columns[j][i];
-                    ht[hash * (col_num + 2) + j] = group_columns[j][i];
-                }
-                *((uint64_t *)&ht[hash * (col_num + 2) + col_num]) = 0;
-                result_size++;
-            }
+            res_flags[hash] = true;
+            for (int j = 0; j < col_num; j++)
+                results[j][hash] = group_columns[j][i];
 
             if (agg_op == "SUM")
-                *((uint64_t *)&ht[hash * (col_num + 2) + col_num]) += agg_column[i]; // this may not work based on the machine (endianness)
+                ((uint64_t *)results[col_num])[hash] += agg_column[i];
             else
             {
                 // std::cout << "Unsupported aggregate operation: " << agg_op << std::endl;
@@ -136,22 +124,7 @@ std::pair<int **, int> group_by_aggregate(int **group_columns, int *agg_column, 
         }
     }
 
-    for (int i = 0; i < result_size; i++)
-    {
-        int hash = 0, mult = 1;
-        for (int j = 0; j < col_num; j++)
-        {
-            hash += (results[j][i] - min_values[j]) * mult;
-            mult *= max_values[j] - min_values[j] + 1;
-        }
-        hash %= prod_ranges;
-
-        ((uint64_t *)results[col_num])[i] = *((uint64_t *)&ht[hash * (col_num + 2) + col_num]);
-    }
-
-    delete[] ht;
-    delete[] hash_set;
     delete[] max_values;
     delete[] min_values;
-    return std::make_pair(results, result_size);
+    return std::make_tuple(results, prod_ranges, res_flags);
 }

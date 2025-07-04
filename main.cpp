@@ -557,7 +557,7 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         int **group_columns = new int *[group.size()];
         for (int i = 0; i < group.size(); i++)
             group_columns[i] = table_data.columns[table_data.column_indices.at(group[i])].content;
-        std::pair<int **, int> agg_res = group_by_aggregate(
+        std::tuple<int **, unsigned long long, bool *> agg_res = group_by_aggregate(
             group_columns,
             table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
             table_data.flags, group.size(), table_data.col_len, agg.agg);
@@ -569,12 +569,13 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
                 delete[] table_data.columns[i].content;
         delete[] table_data.columns;
         delete[] table_data.flags;
-        table_data.column_indices.clear();*/
+        */
+        table_data.column_indices.clear();
 
         table_data.columns = new ColumnData<int>[group.size() + 1];
         for (int i = 0; i < group.size(); i++)
         {
-            table_data.columns[i].content = agg_res.first[i];
+            table_data.columns[i].content = std::get<0>(agg_res)[i];
             table_data.columns[i].has_ownership = true;
             table_data.columns[i].is_aggregate_result = false;
             table_data.columns[i].min_value = 0; // TODO: set real min value
@@ -582,17 +583,15 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
             table_data.column_indices[i] = i;
         }
 
-        table_data.columns[group.size()].content = agg_res.first[group.size()];
+        table_data.columns[group.size()].content = std::get<0>(agg_res)[group.size()];
         table_data.columns[group.size()].has_ownership = true;
         table_data.columns[group.size()].is_aggregate_result = true;
-        table_data.columns[group.size()].content = agg_res.first[group.size()];
         table_data.columns[group.size()].min_value = 0; // TODO: set real min value
         table_data.columns[group.size()].max_value = 0; // TODO: set real max value
         table_data.col_number = group.size() + 1;
         table_data.columns_size = group.size() + 1;
-        table_data.col_len = agg_res.second;
-        table_data.flags = new bool[agg_res.second];
-        std::fill_n(table_data.flags, agg_res.second, true);
+        table_data.col_len = std::get<1>(agg_res);
+        table_data.flags = std::get<2>(agg_res);
         table_data.column_indices[group.size()] = group.size();
     }
 }
