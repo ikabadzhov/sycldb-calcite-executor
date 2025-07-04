@@ -350,7 +350,7 @@ void parse_filter(const ExprType &expr,
             selection(local_flags,
                       table_data.columns[col_index].content,
                       "==", first, "NONE", table_data.col_len);
-            selection(table_data.flags,
+            selection(local_flags,
                       table_data.columns[col_index].content,
                       "==", second, "OR", table_data.col_len);
 
