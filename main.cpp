@@ -633,6 +633,7 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
 
 void print_result(const TableData<int> &table_data)
 {
+    int res_count = 0;
     std::cout << "Result table:" << std::endl;
     for (int i = 0; i < table_data.col_len; i++)
     {
@@ -641,8 +642,11 @@ void print_result(const TableData<int> &table_data)
             for (int j = 0; j < table_data.columns_size; j++) // at this point column_size should match col_number
                 std::cout << ((table_data.columns[j].is_aggregate_result) ? ((unsigned long long *)table_data.columns[j].content)[i] : table_data.columns[j].content[i]) << " ";
             std::cout << std::endl;
+            res_count++;
         }
     }
+
+    std::cout << "Total rows in result: " << res_count << std::endl;
 }
 
 void execute_result(const PlanResult &result)
