@@ -85,8 +85,6 @@ T *loadColumn(string table_name, int col_index, int& table_len) {
 
 TableData<int> loadTable(std::string table_name, int col_number, const std::set<int> &columns)
 {
-    int i, j;
-
     TableData<int> res;
 
     res.col_number = col_number;
@@ -111,7 +109,7 @@ TableData<int> loadTable(std::string table_name, int col_number, const std::set<
     std::cout << "Loaded table: " << res.table_name << " with " << res.col_len << " rows and " << res.col_number << " columns." << std::endl;
 
     res.flags = new bool[res.col_len];
-    for (i = 0; i < res.col_len; i++)
+    for (int i = 0; i < res.col_len; i++)
         res.flags[i] = true; // all rows are selected by default
     return res;
 }

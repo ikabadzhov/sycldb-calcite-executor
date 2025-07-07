@@ -188,7 +188,6 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
         case RelNodeType::PROJECT:
         {
             std::vector<std::tuple<std::string, int>> op_info, last_op_info = ops_info.back();
-            int i = 0;
 
             for (const ExprType &expr : rel.exprs)
             {
