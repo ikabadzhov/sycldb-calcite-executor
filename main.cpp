@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <deque>
+#include <sycl/sycl.hpp>
 
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TSocket.h>
@@ -310,7 +311,7 @@ bool is_filter_logical(const std::string &op)
 
 void parse_filter(const ExprType &expr,
                   const TableData<int> table_data,
-                  std::string parent_op = "")
+                  std::string parent_op, sycl::queue &queue)
 {
     // Recursive parsing of EXRP types. LITERAL and COLUMN are handled in parent EXPR type.
     if (expr.exprType != ExprOption::EXPR)
@@ -322,7 +323,9 @@ void parse_filter(const ExprType &expr,
     if (expr.op == "SEARCH")
     {
         int col_index = table_data.column_indices.at(expr.operands[0].input);
-        bool *local_flags = new bool[table_data.col_len];
+        //bool *local_flags = new bool[table_data.col_len];
+        bool *local_flags = sycl::malloc_shared<bool>(table_data.col_len, queue);
+        queue.prefetch(local_flags, table_data.col_len * sizeof(bool));
 
         if (expr.operands[1].literal.rangeSet.size() == 1) // range
         {
@@ -358,7 +361,8 @@ void parse_filter(const ExprType &expr,
                     get_logical_op(parent_op),
                     table_data.flags[i], local_flags[i]);
         }
-        delete[] local_flags;
+        //delete[] local_flags;
+        sycl::free(local_flags, queue);
     }
     else if (is_filter_logical(expr.op))
     {
@@ -367,7 +371,7 @@ void parse_filter(const ExprType &expr,
         bool parent_op_used = false;
         for (const ExprType &operand : expr.operands)
         {
-            parse_filter(operand, table_data, parent_op_used ? expr.op : parent_op);
+            parse_filter(operand, table_data, parent_op_used ? expr.op : parent_op, queue);
             parent_op_used = true;
         }
     }
@@ -391,7 +395,9 @@ void parse_filter(const ExprType &expr,
                 cols[i] = table_data.columns[table_data.column_indices.at(expr.operands[i].input)].content;
                 break;
             case ExprOption::LITERAL:
-                cols[i] = new int[1];
+                //cols[i] = new int[1];
+                cols[i] = sycl::malloc_shared<int>(1, queue);
+                queue.prefetch(cols[i], sizeof(int));
                 literal = true;
                 cols[i][0] = expr.operands[i].literal.value;
                 break;
@@ -408,7 +414,8 @@ void parse_filter(const ExprType &expr,
         if (literal)
         {
             selection(table_data.flags, cols[0], expr.op, cols[1][0], parent_op, table_data.col_len);
-            delete[] cols[1];
+            //delete[] cols[1];
+            sycl::free(cols[1], queue);
         }
         else
             selection(table_data.flags, cols[0], expr.op, cols[1], parent_op, table_data.col_len);
@@ -417,7 +424,7 @@ void parse_filter(const ExprType &expr,
     }
 }
 
-void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_data)
+void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_data, sycl::queue &queue)
 {
     ColumnData<int> *new_columns = new ColumnData<int>[exprs.size()];
 
@@ -438,7 +445,9 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
             break;
         case ExprOption::LITERAL:
             // create a new column with the literal value
-            new_columns[i].content = new int[table_data.col_len];
+            //new_columns[i].content = new int[table_data.col_len];
+            new_columns[i].content = sycl::malloc_shared<int>(table_data.col_len, queue);
+            queue.prefetch(new_columns[i].content, table_data.col_len * sizeof(int));
             std::fill_n(new_columns[i].content, table_data.col_len, exprs[i].literal.value);
             new_columns[i].min_value = exprs[i].literal.value;
             new_columns[i].max_value = exprs[i].literal.value;
@@ -452,7 +461,9 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
                 std::cout << "Project operation: Unsupported number of operands for EXPR" << std::endl;
                 return;
             }
-            new_columns[i].content = new int[table_data.col_len];
+            //new_columns[i].content = new int[table_data.col_len];
+            new_columns[i].content = sycl::malloc_shared<int>(table_data.col_len, queue);
+            queue.prefetch(new_columns[i].content, table_data.col_len * sizeof(int));
             new_columns[i].has_ownership = true;
             new_columns[i].is_aggregate_result = false;
 
@@ -520,7 +531,7 @@ void parse_project(const std::vector<ExprType> &exprs, TableData<int> &table_dat
         table_data.column_indices[i] = i;
 }
 
-void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group)
+void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::vector<long> &group, sycl::queue &queue)
 {
     if (group.size() == 0)
     {
@@ -547,7 +558,9 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         table_data.col_number = 1;
         table_data.columns_size = 1;
         table_data.col_len = 1;
-        table_data.flags = new bool[1];
+        //table_data.flags = new bool[1];
+        table_data.flags = sycl::malloc_shared<bool>(1, queue);
+        queue.prefetch(table_data.flags, sizeof(bool));
         table_data.flags[0] = true;
         table_data.column_indices[0] = 0;
     }
@@ -650,9 +663,14 @@ void print_result(const TableData<int> &table_data)
 
 void execute_result(const PlanResult &result)
 {
+    sycl::queue queue{sycl::gpu_selector_v};
+    std::cout << "Running on: " << queue.get_device().get_info<sycl::info::device::name>() << std::endl;
     TableData<int> tables[MAX_NTABLES];
-    int current_table = 0,
-        *output_table = new int[result.rels.size()]; // used to track the output table of each operation, in order to be referenced in the joins. other operation types just use the previous output table
+    int current_table = 0;
+    int *output_table = sycl::malloc_shared<int>(result.rels.size(), queue);
+    queue.prefetch(output_table, result.rels.size() * sizeof(int));
+    //*output_table = new int[result.rels.size()];
+    // used to track the output table of each operation, in order to be referenced in the joins. other operation types just use the previous output table
     ExecutionInfo exec_info = parse_execution_info(result);
 
     for (const RelNode &rel : result.rels)
@@ -667,7 +685,7 @@ void execute_result(const PlanResult &result)
         }
         std::set<int> &column_idxs = exec_info.loaded_columns[rel.tables[0]];
         // tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
-        tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs);
+        tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs, queue);
         tables[current_table].table_name = rel.tables[0];
         if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
             tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[0]];
@@ -684,17 +702,17 @@ void execute_result(const PlanResult &result)
             break;
         case RelNodeType::FILTER:
             // std::cout << "Filter condition: " << rel.condition << std::endl;
-            parse_filter(rel.condition, tables[output_table[rel.id - 1]]);
+            parse_filter(rel.condition, tables[output_table[rel.id - 1]], "", queue);
             output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::PROJECT:
             std::cout << "Project operation" << std::endl;
-            parse_project(rel.exprs, tables[output_table[rel.id - 1]]);
+            parse_project(rel.exprs, tables[output_table[rel.id - 1]], queue);
             output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::AGGREGATE:
             std::cout << "Aggregate operation: " << rel.aggs[0].agg << std::endl;
-            parse_aggregate(tables[output_table[rel.id - 1]], rel.aggs[0], rel.group);
+            parse_aggregate(tables[output_table[rel.id - 1]], rel.aggs[0], rel.group, queue);
             output_table[rel.id] = output_table[rel.id - 1];
             break;
         case RelNodeType::JOIN:

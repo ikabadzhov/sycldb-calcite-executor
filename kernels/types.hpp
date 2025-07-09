@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <string>
 #include <fstream>
+#include <sycl/sycl.hpp>
 
 #pragma once
 
@@ -62,7 +63,7 @@ TableData<int> generate_dummy(int col_len, int col_number)
 }
 
 template <typename T>
-T *loadColumn(string table_name, int col_index, int& table_len) {
+T *loadColumn(string table_name, int col_index, int& table_len, sycl::queue &queue) {
   std::transform(table_name.begin(), table_name.end(), table_name.begin(), ::toupper);
   string col_name = table_name + std::to_string(col_index);
   string filename = DATA_DIR + col_name;
@@ -76,14 +77,15 @@ T *loadColumn(string table_name, int col_index, int& table_len) {
   std::streampos fileSize = colData.tellg();
   int num_entries = static_cast<int>(fileSize / sizeof(T));
   colData.seekg(0, std::ios::beg);
-  //T *h_col = sycl::malloc_host<T>(num_entries, queue);
-  T* h_col = new T[num_entries];
+  T *h_col = new T[num_entries];
   colData.read((char *)h_col, num_entries * sizeof(T));
+  T *h_col2 = sycl::malloc_shared<T>(num_entries, queue);
+  queue.memcpy(h_col2, h_col, num_entries * sizeof(T)).wait();
   table_len = num_entries;
-  return h_col;
+  return h_col2;
 }
 
-TableData<int> loadTable(std::string table_name, int col_number, const std::set<int> &columns)
+TableData<int> loadTable(std::string table_name, int col_number, const std::set<int> &columns, sycl::queue &queue)
 {
     TableData<int> res;
 
@@ -98,7 +100,7 @@ TableData<int> loadTable(std::string table_name, int col_number, const std::set<
     for (auto &col_idx : columns)
     {
         res.column_indices[col_idx] = col_idx; // map the column index to itself
-        res.columns[col_idx].content = loadColumn<int>(res.table_name, col_idx, res.col_len);
+        res.columns[col_idx].content = loadColumn<int>(res.table_name, col_idx, res.col_len, queue);
         res.columns[col_idx].has_ownership = true;
         res.columns[col_idx].is_aggregate_result = false;
         //res.col_len = sizeof(res.columns[col_idx].content) / sizeof(int);
@@ -107,9 +109,10 @@ TableData<int> loadTable(std::string table_name, int col_number, const std::set<
     }
 
     std::cout << "Loaded table: " << res.table_name << " with " << res.col_len << " rows and " << res.col_number << " columns." << std::endl;
-
-    res.flags = new bool[res.col_len];
-    for (int i = 0; i < res.col_len; i++)
-        res.flags[i] = true; // all rows are selected by default
+    bool *flags = new bool[res.col_len];
+    std::fill_n(flags, res.col_len, true);
+    res.flags = sycl::malloc_shared<bool>(res.col_len, queue);
+    queue.prefetch(res.flags, res.col_len * sizeof(bool));
+    queue.memcpy(res.flags, flags, res.col_len * sizeof(bool)).wait();
     return res;
 }
