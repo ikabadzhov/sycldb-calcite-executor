@@ -334,10 +334,10 @@ void parse_filter(const ExprType &expr,
 
             selection(local_flags,
                       table_data.columns[col_index].content,
-                      ">=", lower, "NONE", table_data.col_len);
+                      ">=", lower, "NONE", table_data.col_len, queue);
             selection(local_flags,
                       table_data.columns[col_index].content,
-                      "<=", upper, "AND", table_data.col_len);
+                      "<=", upper, "AND", table_data.col_len, queue);
 
             for (int i = 0; i < table_data.col_len; i++)
                 table_data.flags[i] = logical(
@@ -351,10 +351,10 @@ void parse_filter(const ExprType &expr,
 
             selection(local_flags,
                       table_data.columns[col_index].content,
-                      "==", first, "NONE", table_data.col_len);
+                      "==", first, "NONE", table_data.col_len, queue);
             selection(local_flags,
                       table_data.columns[col_index].content,
-                      "==", second, "OR", table_data.col_len);
+                      "==", second, "OR", table_data.col_len, queue);
 
             for (int i = 0; i < table_data.col_len; i++)
                 table_data.flags[i] = logical(
@@ -413,12 +413,12 @@ void parse_filter(const ExprType &expr,
         // Assumed literal is always the second operand.
         if (literal)
         {
-            selection(table_data.flags, cols[0], expr.op, cols[1][0], parent_op, table_data.col_len);
+            selection(table_data.flags, cols[0], expr.op, cols[1][0], parent_op, table_data.col_len, queue);
             //delete[] cols[1];
             sycl::free(cols[1], queue);
         }
         else
-            selection(table_data.flags, cols[0], expr.op, cols[1], parent_op, table_data.col_len);
+            selection(table_data.flags, cols[0], expr.op, cols[1], parent_op, table_data.col_len, queue);
 
         delete[] cols;
     }
