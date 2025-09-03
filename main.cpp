@@ -91,7 +91,7 @@ std::vector<int> dag_topological_sort(const PlanResult &result)
 
         if (delayed < 2 &&
             result.rels[node].relOp == RelNodeType::TABLE_SCAN &&
-            result.rels[node].tables[0] == "lineorder")
+            result.rels[node].tables[1] == "lineorder")
         {
             S.push_front(node);
             delayed++;
@@ -151,19 +151,19 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
         {
         case RelNodeType::TABLE_SCAN:
         {
-            int num_columns = table_column_numbers[rel.tables[0]];
+            int num_columns = table_column_numbers[rel.tables[1]];
             std::vector<std::tuple<std::string, int>> table;
             table.reserve(num_columns);
 
             // all the columns of the table
             for (int i = 0; i < num_columns; i++)
-                table.push_back(std::make_tuple(rel.tables[0], i));
+                table.push_back(std::make_tuple(rel.tables[1], i));
 
             ops_info.push_back(table);
 
             // init info for the table in the result
-            info.loaded_columns[rel.tables[0]] = std::set<int>();
-            info.table_last_used[rel.tables[0]] = rel.id;
+            info.loaded_columns[rel.tables[1]] = std::set<int>();
+            info.table_last_used[rel.tables[1]] = rel.id;
             break;
         }
         case RelNodeType::FILTER:
@@ -660,18 +660,18 @@ void execute_result(const PlanResult &result)
     {
         if (rel.relOp != RelNodeType::TABLE_SCAN)
             continue;
-        std::cout << "Table Scan on: " << rel.tables[0] << std::endl;
-        if (exec_info.loaded_columns.find(rel.tables[0]) == exec_info.loaded_columns.end())
+        std::cout << "Table Scan on: " << rel.tables[1] << std::endl;
+        if (exec_info.loaded_columns.find(rel.tables[1]) == exec_info.loaded_columns.end())
         {
-            std::cout << "Table " << rel.tables[0] << " was never loaded." << std::endl;
+            std::cout << "Table " << rel.tables[1] << " was never loaded." << std::endl;
             return;
         }
-        std::set<int> &column_idxs = exec_info.loaded_columns[rel.tables[0]];
+        std::set<int> &column_idxs = exec_info.loaded_columns[rel.tables[1]];
         // tables[current_table] = generate_dummy(100 * (current_table + 1), table_column_numbers[rel.tables[0]]);
-        tables[current_table] = loadTable(rel.tables[0], table_column_numbers[rel.tables[0]], column_idxs);
-        tables[current_table].table_name = rel.tables[0];
-        if (exec_info.group_by_columns.find(rel.tables[0]) != exec_info.group_by_columns.end())
-            tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[0]];
+        tables[current_table] = loadTable(rel.tables[1], table_column_numbers[rel.tables[1]], column_idxs);
+        tables[current_table].table_name = rel.tables[1];
+        if (exec_info.group_by_columns.find(rel.tables[1]) != exec_info.group_by_columns.end())
+            tables[current_table].group_by_column = exec_info.group_by_columns[rel.tables[1]];
         output_table[rel.id] = current_table;
         current_table++;
     }
