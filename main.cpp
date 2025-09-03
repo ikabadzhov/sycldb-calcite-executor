@@ -62,6 +62,7 @@ std::vector<int> dag_topological_sort(const PlanResult &result)
         case RelNodeType::FILTER:
         case RelNodeType::PROJECT:
         case RelNodeType::AGGREGATE:
+        case RelNodeType::SORT:
             dag[rel.id - 1][rel.id] = 1; // connect to the previous operation
             break;
         case RelNodeType::JOIN:
@@ -284,6 +285,25 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
             // insert left and right info into the operation info
             op_info.insert(op_info.begin(), left_info.begin(), left_info.end());
             op_info.insert(op_info.end(), right_info.begin(), right_info.end());
+
+            ops_info.push_back(op_info);
+            break;
+        }
+        case RelNodeType::SORT:
+        {
+            std::vector<std::tuple<std::string, int>> op_info(ops_info.back());
+            std::set<int64_t> columns;
+
+            for (const CollationType col : rel.collation)
+                columns.insert(col.field);
+
+            for (int64_t col : columns)
+            {
+                std::string table_name = std::get<0>(op_info[col]);
+                int col_index = std::get<1>(op_info[col]);
+                info.loaded_columns[table_name].insert(col_index);
+                info.table_last_used[table_name] = rel.id;
+            }
 
             ops_info.push_back(op_info);
             break;
@@ -765,7 +785,7 @@ int main(int argc, char **argv)
 
         execute_result(result);
 
-        client.shutdown();
+        // client.shutdown();
 
         transport->close();
     }

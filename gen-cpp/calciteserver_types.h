@@ -27,7 +27,8 @@ struct RelNodeType {
     FILTER = 1,
     JOIN = 2,
     PROJECT = 3,
-    AGGREGATE = 4
+    AGGREGATE = 4,
+    SORT = 5
   };
 };
 
@@ -36,6 +37,32 @@ extern const std::map<int, const char*> _RelNodeType_VALUES_TO_NAMES;
 std::ostream& operator<<(std::ostream& out, const RelNodeType::type& val);
 
 std::string to_string(const RelNodeType::type& val);
+
+struct DirectionOption {
+  enum type {
+    DESCENDING = 0,
+    ASCENDING = 1
+  };
+};
+
+extern const std::map<int, const char*> _DirectionOption_VALUES_TO_NAMES;
+
+std::ostream& operator<<(std::ostream& out, const DirectionOption::type& val);
+
+std::string to_string(const DirectionOption::type& val);
+
+struct NullsOption {
+  enum type {
+    FIRST = 0,
+    LAST = 1
+  };
+};
+
+extern const std::map<int, const char*> _NullsOption_VALUES_TO_NAMES;
+
+std::ostream& operator<<(std::ostream& out, const NullsOption::type& val);
+
+std::string to_string(const NullsOption::type& val);
 
 struct ExprOption {
   enum type {
@@ -64,6 +91,8 @@ std::ostream& operator<<(std::ostream& out, const LiteralOption::type& val);
 
 std::string to_string(const LiteralOption::type& val);
 
+class CollationType;
+
 class AggType;
 
 class LiteralType;
@@ -73,6 +102,58 @@ class ExprType;
 class RelNode;
 
 class PlanResult;
+
+typedef struct _CollationType__isset {
+  _CollationType__isset() : field(false), direction(false), nulls(false) {}
+  bool field :1;
+  bool direction :1;
+  bool nulls :1;
+} _CollationType__isset;
+
+class CollationType : public virtual ::apache::thrift::TBase {
+ public:
+
+  CollationType(const CollationType&) noexcept;
+  CollationType& operator=(const CollationType&) noexcept;
+  CollationType() noexcept;
+
+  virtual ~CollationType() noexcept;
+  int64_t field;
+  /**
+   * 
+   * @see DirectionOption
+   */
+  DirectionOption::type direction;
+  /**
+   * 
+   * @see NullsOption
+   */
+  NullsOption::type nulls;
+
+  _CollationType__isset __isset;
+
+  void __set_field(const int64_t val);
+
+  void __set_direction(const DirectionOption::type val);
+
+  void __set_nulls(const NullsOption::type val);
+
+  bool operator == (const CollationType & rhs) const;
+  bool operator != (const CollationType &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const CollationType & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
+
+  virtual void printTo(std::ostream& out) const;
+};
+
+void swap(CollationType &a, CollationType &b);
+
+std::ostream& operator<<(std::ostream& out, const CollationType& obj);
 
 typedef struct _AggType__isset {
   _AggType__isset() : agg(false), operands(false), name(false), type(false), distinct(false) {}
@@ -239,7 +320,7 @@ void swap(ExprType &a, ExprType &b);
 std::ostream& operator<<(std::ostream& out, const ExprType& obj);
 
 typedef struct _RelNode__isset {
-  _RelNode__isset() : id(false), relOp(false), tables(false), inputs(false), condition(false), joinType(false), fields(false), exprs(false), group(false), aggs(false) {}
+  _RelNode__isset() : id(false), relOp(false), tables(false), inputs(false), condition(false), joinType(false), fields(false), exprs(false), group(false), aggs(false), collation(false) {}
   bool id :1;
   bool relOp :1;
   bool tables :1;
@@ -250,6 +331,7 @@ typedef struct _RelNode__isset {
   bool exprs :1;
   bool group :1;
   bool aggs :1;
+  bool collation :1;
 } _RelNode__isset;
 
 class RelNode : public virtual ::apache::thrift::TBase {
@@ -274,6 +356,7 @@ class RelNode : public virtual ::apache::thrift::TBase {
   std::vector<ExprType>  exprs;
   std::vector<int64_t>  group;
   std::vector<AggType>  aggs;
+  std::vector<CollationType>  collation;
 
   _RelNode__isset __isset;
 
@@ -296,6 +379,8 @@ class RelNode : public virtual ::apache::thrift::TBase {
   void __set_group(const std::vector<int64_t> & val);
 
   void __set_aggs(const std::vector<AggType> & val);
+
+  void __set_collation(const std::vector<CollationType> & val);
 
   bool operator == (const RelNode & rhs) const;
   bool operator != (const RelNode &rhs) const {

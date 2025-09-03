@@ -1,8 +1,11 @@
-select c_nation, s_nation, d_year, sum(lo_revenue) as revenue
+select c_nation,
+  s_nation,
+  d_year,
+  sum(lo_revenue) as revenue
 from lineorder,
-     customer,
-     supplier,
-     ddate
+  customer,
+  supplier,
+  ddate
 where lo_custkey = c_custkey
   and lo_suppkey = s_suppkey
   and lo_orderdate = d_datekey
@@ -10,5 +13,8 @@ where lo_custkey = c_custkey
   and s_region = 2
   and d_year >= 1992
   and d_year <= 1997
-group by c_nation, s_nation, d_year
-
+group by c_nation,
+  s_nation,
+  d_year
+order by d_year asc,
+  revenue desc
