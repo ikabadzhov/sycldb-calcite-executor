@@ -13,6 +13,7 @@
 #include "kernels/types.hpp"
 #include "kernels/aggregation.hpp"
 #include "kernels/join.hpp"
+#include "kernels/sort.hpp"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -299,10 +300,13 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
 
             for (int64_t col : columns)
             {
-                std::string table_name = std::get<0>(op_info[col]);
-                int col_index = std::get<1>(op_info[col]);
-                info.loaded_columns[table_name].insert(col_index);
-                info.table_last_used[table_name] = rel.id;
+                if (col < op_info.size()) // some projects will add literals columns that are not in any original table
+                {
+                    std::string table_name = std::get<0>(op_info[col]);
+                    int col_index = std::get<1>(op_info[col]);
+                    info.loaded_columns[table_name].insert(col_index);
+                    info.table_last_used[table_name] = rel.id;
+                }
             }
 
             ops_info.push_back(op_info);
@@ -651,6 +655,26 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
     left_table.col_number += right_table.col_number;
 }
 
+void parse_sort(const RelNode &rel, TableData<int> &table_data)
+{
+    if (rel.collation.size() == 0)
+        return;
+
+    int *sort_columns = new int[rel.collation.size()];
+    bool *sort_orders = new bool[rel.collation.size()];
+
+    for (int i = 0; i < rel.collation.size(); i++)
+    {
+        sort_columns[i] = rel.collation[i].field;
+        sort_orders[i] = rel.collation[i].direction == DirectionOption::ASCENDING;
+    }
+
+    sort_table(table_data, sort_columns, sort_orders, rel.collation.size());
+
+    delete[] sort_columns;
+    delete[] sort_orders;
+}
+
 void print_result(const TableData<int> &table_data)
 {
     int res_count = 0;
@@ -722,6 +746,11 @@ void execute_result(const PlanResult &result)
             std::cout << "Join operation" << std::endl;
             parse_join(rel, tables[output_table[rel.inputs[0]]], tables[output_table[rel.inputs[1]]], exec_info.table_last_used);
             output_table[rel.id] = output_table[rel.inputs[0]];
+            break;
+        case RelNodeType::SORT:
+            std::cout << "Sort operation" << std::endl;
+            parse_sort(rel, tables[output_table[rel.id - 1]]);
+            output_table[rel.id] = output_table[rel.id - 1];
             break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
