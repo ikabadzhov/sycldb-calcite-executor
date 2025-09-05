@@ -13,6 +13,7 @@
 #include "kernels/types.hpp"
 #include "kernels/aggregation.hpp"
 #include "kernels/join.hpp"
+#include "kernels/sort.hpp"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -62,6 +63,7 @@ std::vector<int> dag_topological_sort(const PlanResult &result)
         case RelNodeType::FILTER:
         case RelNodeType::PROJECT:
         case RelNodeType::AGGREGATE:
+        case RelNodeType::SORT:
             dag[rel.id - 1][rel.id] = 1; // connect to the previous operation
             break;
         case RelNodeType::JOIN:
@@ -284,6 +286,28 @@ ExecutionInfo parse_execution_info(const PlanResult &result)
             // insert left and right info into the operation info
             op_info.insert(op_info.begin(), left_info.begin(), left_info.end());
             op_info.insert(op_info.end(), right_info.begin(), right_info.end());
+
+            ops_info.push_back(op_info);
+            break;
+        }
+        case RelNodeType::SORT:
+        {
+            std::vector<std::tuple<std::string, int>> op_info(ops_info.back());
+            std::set<int64_t> columns;
+
+            for (const CollationType col : rel.collation)
+                columns.insert(col.field);
+
+            for (int64_t col : columns)
+            {
+                if (col < op_info.size()) // some projects will add literals columns that are not in any original table
+                {
+                    std::string table_name = std::get<0>(op_info[col]);
+                    int col_index = std::get<1>(op_info[col]);
+                    info.loaded_columns[table_name].insert(col_index);
+                    info.table_last_used[table_name] = rel.id;
+                }
+            }
 
             ops_info.push_back(op_info);
             break;
@@ -631,6 +655,26 @@ void parse_join(const RelNode &rel, TableData<int> &left_table, TableData<int> &
     left_table.col_number += right_table.col_number;
 }
 
+void parse_sort(const RelNode &rel, TableData<int> &table_data)
+{
+    if (rel.collation.size() == 0)
+        return;
+
+    int *sort_columns = new int[rel.collation.size()];
+    bool *sort_orders = new bool[rel.collation.size()];
+
+    for (int i = 0; i < rel.collation.size(); i++)
+    {
+        sort_columns[i] = rel.collation[i].field;
+        sort_orders[i] = rel.collation[i].direction == DirectionOption::ASCENDING;
+    }
+
+    sort_table(table_data, sort_columns, sort_orders, rel.collation.size());
+
+    delete[] sort_columns;
+    delete[] sort_orders;
+}
+
 void print_result(const TableData<int> &table_data)
 {
     int res_count = 0;
@@ -703,6 +747,11 @@ void execute_result(const PlanResult &result)
             parse_join(rel, tables[output_table[rel.inputs[0]]], tables[output_table[rel.inputs[1]]], exec_info.table_last_used);
             output_table[rel.id] = output_table[rel.inputs[0]];
             break;
+        case RelNodeType::SORT:
+            std::cout << "Sort operation" << std::endl;
+            parse_sort(rel, tables[output_table[rel.id - 1]]);
+            output_table[rel.id] = output_table[rel.id - 1];
+            break;
         default:
             std::cout << "Unsupported RelNodeType: " << rel.relOp << std::endl;
             break;
@@ -765,7 +814,7 @@ int main(int argc, char **argv)
 
         execute_result(result);
 
-        client.shutdown();
+        // client.shutdown();
 
         transport->close();
     }
