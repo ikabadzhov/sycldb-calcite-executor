@@ -578,10 +578,10 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
     }
     else
     {
-        int **group_columns = new int *[group.size()];
+        ColumnData<int> *group_columns = new ColumnData<int>[group.size()];
         for (int i = 0; i < group.size(); i++)
-            group_columns[i] = table_data.columns[table_data.column_indices.at(group[i])].content;
-        std::tuple<int **, unsigned long long, bool *> agg_res = group_by_aggregate(
+            group_columns[i] = table_data.columns[table_data.column_indices.at(group[i])];
+        std::tuple<int *, unsigned long long, bool *> agg_res = group_by_aggregate(
             group_columns,
             table_data.columns[table_data.column_indices.at(agg.operands[0])].content,
             table_data.flags, group.size(), table_data.col_len, agg.agg);
@@ -599,7 +599,10 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         table_data.columns = new ColumnData<int>[group.size() + 1];
         for (int i = 0; i < group.size(); i++)
         {
-            table_data.columns[i].content = std::get<0>(agg_res)[i];
+            table_data.columns[i].content = new int[std::get<1>(agg_res)];
+            std::memcpy(table_data.columns[i].content,
+                        std::get<0>(agg_res) + i * std::get<1>(agg_res),
+                        std::get<1>(agg_res) * sizeof(int));
             table_data.columns[i].has_ownership = true;
             table_data.columns[i].is_aggregate_result = false;
             table_data.columns[i].min_value = 0; // TODO: set real min value
@@ -607,7 +610,10 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
             table_data.column_indices[i] = i;
         }
 
-        table_data.columns[group.size()].content = std::get<0>(agg_res)[group.size()];
+        table_data.columns[group.size()].content = (int *)new uint64_t[std::get<1>(agg_res)];
+        std::memcpy(table_data.columns[group.size()].content,
+                    std::get<0>(agg_res) + group.size() * std::get<1>(agg_res),
+                    std::get<1>(agg_res) * sizeof(uint64_t));
         table_data.columns[group.size()].has_ownership = true;
         table_data.columns[group.size()].is_aggregate_result = true;
         table_data.columns[group.size()].min_value = 0; // TODO: set real min value
@@ -617,6 +623,8 @@ void parse_aggregate(TableData<int> &table_data, const AggType &agg, const std::
         table_data.col_len = std::get<1>(agg_res);
         table_data.flags = std::get<2>(agg_res);
         table_data.column_indices[group.size()] = group.size();
+
+        delete[] std::get<0>(agg_res);
     }
 }
 

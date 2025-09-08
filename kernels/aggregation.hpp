@@ -67,7 +67,7 @@ bool is_in_set(int *set, int value, int set_len)
     return false;
 }
 
-std::tuple<int **, unsigned long long, bool *> group_by_aggregate(int **group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
+std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int> *group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
 {
     int *max_values = new int[col_num],
         *min_values = new int[col_num];
@@ -75,28 +75,12 @@ std::tuple<int **, unsigned long long, bool *> group_by_aggregate(int **group_co
 
     for (int i = 0; i < col_num; i++)
     {
-        int min = INT_MAX,
-            max = INT_MIN;
-        for (int j = 0; j < col_len; j++)
-        {
-            if (flags[j])
-            {
-                if (group_columns[i][j] < min)
-                    min = group_columns[i][j];
-                if (group_columns[i][j] > max)
-                    max = group_columns[i][j];
-            }
-        }
-        min_values[i] = min;
-        max_values[i] = max;
-        prod_ranges *= max - min + 1;
+        min_values[i] = group_columns[i].min_value;
+        max_values[i] = group_columns[i].max_value;
+        prod_ranges *= max_values[i] - min_values[i] + 1;
     }
 
-    int **results = new int *[col_num + 1];
-
-    for (int i = 0; i < col_num; i++)
-        results[i] = new int[prod_ranges];
-    results[col_num] = (int *)new uint64_t[prod_ranges];
+    int *results = new int[(col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges];
     bool *res_flags = new bool[prod_ranges]();
 
     for (int i = 0; i < col_len; i++)
@@ -106,17 +90,17 @@ std::tuple<int **, unsigned long long, bool *> group_by_aggregate(int **group_co
             int hash = 0, mult = 1;
             for (int j = 0; j < col_num; j++)
             {
-                hash += (group_columns[j][i] - min_values[j]) * mult;
+                hash += (group_columns[j].content[i] - min_values[j]) * mult;
                 mult *= max_values[j] - min_values[j] + 1;
             }
             hash %= prod_ranges;
 
             res_flags[hash] = true;
             for (int j = 0; j < col_num; j++)
-                results[j][hash] = group_columns[j][i];
+                results[j * prod_ranges + hash] = group_columns[j].content[i];
 
             if (agg_op == "SUM")
-                ((uint64_t *)results[col_num])[hash] += agg_column[i];
+                ((uint64_t *)(&results[col_num * prod_ranges]))[hash] += agg_column[i];
             else
             {
                 // std::cout << "Unsupported aggregate operation: " << agg_op << std::endl;

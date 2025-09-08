@@ -57,7 +57,7 @@ void full_join(TableData<int> &probe_table,
                int build_col_index)
 {
     int ht_len = build_table.columns[build_table.column_indices.at(build_col_index)].max_value -
-                build_table.columns[build_table.column_indices.at(build_col_index)].min_value + 1;
+                 build_table.columns[build_table.column_indices.at(build_col_index)].min_value + 1;
     int *ht = new int[ht_len * 2],
         build_column = build_table.column_indices.at(build_col_index),
         probe_column = probe_table.column_indices.at(probe_col_index);
@@ -85,6 +85,10 @@ void full_join(TableData<int> &probe_table,
     // the group by column index must refer to the old foreign key
     probe_table.column_indices.erase(probe_col_index);
     probe_table.column_indices[probe_table.col_number + build_table.group_by_column] = probe_column;
+
+    // update min and max values of the probe column
+    probe_table.columns[probe_column].min_value = build_table.columns[build_table.group_by_column].min_value;
+    probe_table.columns[probe_column].max_value = build_table.columns[build_table.group_by_column].max_value;
 
     delete[] ht;
 }
