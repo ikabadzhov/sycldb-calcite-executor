@@ -81,6 +81,8 @@ std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int>
     }
 
     int *results = new int[(col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges];
+    std::fill_n(results, (col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges, 0);
+
     bool *res_flags = new bool[prod_ranges]();
 
     for (int i = 0; i < col_len; i++)
