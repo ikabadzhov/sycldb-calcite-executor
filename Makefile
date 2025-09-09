@@ -1,12 +1,17 @@
-INCLUDES := -Ikernels -Igen-cpp -I/usr/local/include -L/usr/local/lib -Wl,-rpath=/usr/local/lib
+CXX = clang++ -fsycl -Wall -fsycl-targets=nvptx64-nvidia-cuda
+CXXFLAGS = -std=c++20 -O3 -Ikernels -Igen-cpp -I/usr/local/include
+LDFLAGS = -L/usr/local/lib -lthrift -Wl,-rpath=/usr/local/lib
 
-client: main.o gen-cpp/CalciteServer.o gen-cpp/calciteserver_types.o
-		g++ -g -o client $^ -lthrift $(INCLUDES)
+SRC = main.cpp gen-cpp/CalciteServer.cpp gen-cpp/calciteserver_types.cpp
+TARGET = client
 
-%.o: %.cpp
-		g++ -g -c -o $@ $< $(INCLUDES)
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+	#./client | grep '^>>>'
+	#./client ./queries/transformed/q21.sql | grep '^>>>'
+	#./client ./queries/transformed/q41.sql | grep '^>>>'
 
 clean:
-		-rm client
-		-rm ./**.o
-		-rm ./**/*.o
+	-rm client

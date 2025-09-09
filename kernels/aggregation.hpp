@@ -2,75 +2,96 @@
 
 #include <string>
 
-#define HASH_SET_LEN 1000000
+enum class BinaryOp : uint8_t {
+    Multiply,
+    Divide,
+    Add,
+    Subtract
+};
 
 template <typename T>
-inline T element_operation(T a, T b, const std::string &op)
+inline T element_operation(T a, T b, BinaryOp op)
 {
-    if (op == "*")
-        return a * b;
-    else if (op == "/")
-        return a / b;
-    else if (op == "+")
-        return a + b;
-    else if (op == "-")
-        return a - b;
-    else
-        return 0;
+    switch (op) {
+        case BinaryOp::Multiply: return a * b;
+        case BinaryOp::Divide:   return a / b;
+        case BinaryOp::Add:      return a + b;
+        case BinaryOp::Subtract: return a - b;
+        default:                 return 0;
+    }
+}
+
+BinaryOp get_op_from_string(const std::string &op) {
+    if (op == "*") return BinaryOp::Multiply;
+    if (op == "/") return BinaryOp::Divide;
+    if (op == "+") return BinaryOp::Add;
+    if (op == "-") return BinaryOp::Subtract;
+    throw std::invalid_argument("Unknown operation: " + op);
 }
 
 template <typename T>
-void perform_operation(T result[], const T a[], const T b[], bool flags[], int size, const std::string &op)
+void perform_operation(T result[], const T a[], const T b[], bool flags[], int size, const std::string &op, sycl::queue &queue)
 {
-    for (int i = 0; i < size; i++)
+    //for (int i = 0; i < size; i++)
+    BinaryOp op_enum = get_op_from_string(op);
+    queue.parallel_for(size, [=](sycl::id<1> i) {
         if (flags[i])
-            result[i] = element_operation(a[i], b[i], op);
+            result[i] = element_operation(a[i], b[i], op_enum);
+    });
 }
 
 template <typename T>
-void perform_operation(T result[], T a, const T b[], bool flags[], int size, const std::string &op)
+void perform_operation(T result[], T a, const T b[], bool flags[], int size, const std::string &op, sycl::queue &queue)
 {
-    for (int i = 0; i < size; i++)
+    //for (int i = 0; i < size; i++)
+    BinaryOp op_enum = get_op_from_string(op);
+    queue.parallel_for(size, [=](sycl::id<1> i) {
         if (flags[i])
-            result[i] = element_operation(a, b[i], op);
+            result[i] = element_operation(a, b[i], op_enum);
+    });
 }
 
 template <typename T>
-void perform_operation(T result[], const T a[], T b, bool flags[], int size, const std::string &op)
+void perform_operation(T result[], const T a[], T b, bool flags[], int size, const std::string &op, sycl::queue &queue)
 {
-    for (int i = 0; i < size; i++)
+    //for (int i = 0; i < size; i++)
+    BinaryOp op_enum = get_op_from_string(op);
+    queue.parallel_for(size, [=](sycl::id<1> i) {
         if (flags[i])
-            result[i] = element_operation(a[i], b, op);
+            result[i] = element_operation(a[i], b, op_enum);
+    });
 }
 
 template <typename T, typename U>
-void aggregate_operation(U &result, const T a[], bool flags[], int size, const std::string &op)
+void aggregate_operation(U &result, const T a[], bool flags[], int size, const std::string &op, sycl::queue &queue)
 {
-    if (op == "SUM")
-    {
-        result = 0;
-        for (int i = 0; i < size; i++)
-            if (flags[i])
-                result += a[i];
-    }
-    else
-    {
-        // std::cout << "Unsupported aggregate operation: " << op << std::endl;
-    }
+    result = 0;
+    unsigned long long *d_result = sycl::malloc_shared<unsigned long long>(1, queue);
+    queue.memset(d_result, 0, sizeof(unsigned long long)).wait();
+    queue.parallel_for(size, sycl::reduction(d_result, sycl::plus<>()), [=](sycl::id<1> idx, auto &sum) {
+        if (flags[idx]) { sum.combine(a[idx]); }
+    });
+    queue.memcpy(&result, d_result, sizeof(unsigned long long)).wait();
+    sycl::free(d_result, queue);
 }
 
-bool is_in_set(int *set, int value, int set_len)
+/*unsigned long long aggregate_operation(const int a[], bool flags[], int size, const std::string &op, sycl::queue &queue)
 {
-    for (int i = 0; i < set_len; i++)
-        if (set[i] == value)
-            return true;
-    return false;
-}
+    unsigned long long result = 0;
+    unsigned long long *d_result = sycl::malloc_device<unsigned long long>(1, queue);
+    queue.memset(d_result, 0, sizeof(unsigned long long)).wait();
+    queue.parallel_for(size, sycl::reduction(d_result, sycl::plus<>()), [=](sycl::id<1> idx, auto &sum) {
+        if (flags[idx]) { sum.combine(a[idx]); }
+    });
+    queue.memcpy(&result, d_result, sizeof(unsigned long long)).wait();
+    sycl::free(d_result, queue);
+    return result;
+}*/
 
-std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int> *group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op)
+std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int> *group_columns, int *agg_column, bool *flags, int col_num, int col_len, const std::string &agg_op, sycl::queue &queue)
 {
-    int *max_values = new int[col_num],
-        *min_values = new int[col_num];
+    int *max_values = sycl::malloc_shared<int>(col_num, queue),
+        *min_values = sycl::malloc_shared<int>(col_num, queue);
     unsigned long long prod_ranges = 1;
 
     for (int i = 0; i < col_num; i++)
@@ -80,12 +101,16 @@ std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int>
         prod_ranges *= max_values[i] - min_values[i] + 1;
     }
 
-    int *results = new int[(col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges];
-    std::fill_n(results, (col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges, 0);
+    //int *results = new int[(col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges];
+    //std::fill_n(results, (col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges, 0);
+    //bool *res_flags = new bool[prod_ranges]();
+    int *results = sycl::malloc_shared<int>((col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges, queue);
+    queue.fill(results, 0, sizeof(int) * (col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges).wait();
+    bool *res_flags = sycl::malloc_shared<bool>(prod_ranges, queue);
+    queue.fill(res_flags, 0, sizeof(bool) * prod_ranges).wait();
 
-    bool *res_flags = new bool[prod_ranges]();
-
-    for (int i = 0; i < col_len; i++)
+    //for (int i = 0; i < col_len; i++)
+    queue.parallel_for(col_len, [=](sycl::id<1> i)
     {
         if (flags[i])
         {
@@ -101,16 +126,22 @@ std::tuple<int *, unsigned long long, bool *> group_by_aggregate(ColumnData<int>
             for (int j = 0; j < col_num; j++)
                 results[j * prod_ranges + hash] = group_columns[j].content[i];
 
-            if (agg_op == "SUM")
-                ((uint64_t *)(&results[col_num * prod_ranges]))[hash] += agg_column[i];
-            else
-            {
-                // std::cout << "Unsupported aggregate operation: " << agg_op << std::endl;
-            }
+            //if (agg_op == "SUM")
+            ((uint64_t *)(&results[col_num * prod_ranges]))[hash] += agg_column[i];
         }
-    }
+    });
+    queue.wait();
 
-    delete[] max_values;
-    delete[] min_values;
-    return std::make_tuple(results, prod_ranges, res_flags);
+    int *h_results = new int[(col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges];
+    bool *h_res_flags = new bool[prod_ranges]();
+    queue.memcpy(h_results, results, sizeof(int) * (col_num + (sizeof(uint64_t) / sizeof(int))) * prod_ranges).wait();
+    queue.memcpy(h_res_flags, res_flags, sizeof(bool) * prod_ranges).wait();
+    sycl::free(results, queue);
+    sycl::free(res_flags, queue);
+
+    //delete[] max_values;
+    //delete[] min_values;
+    sycl::free(max_values, queue);
+    sycl::free(min_values, queue);
+    return std::make_tuple(h_results, prod_ranges, h_res_flags);
 }

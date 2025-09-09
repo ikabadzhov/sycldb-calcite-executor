@@ -7,13 +7,16 @@ inline T HASH(T X, T Y, T Z)
 }
 
 template <typename T>
-void build_keys_ht(T col[], bool flags[], int col_len, bool ht[], T ht_len, T ht_min_value)
+void build_keys_ht(T col[], bool flags[], int col_len, bool ht[], T ht_len, T ht_min_value, sycl::queue &queue)
 {
-    for (int i = 0; i < col_len; i++)
+    //for (int i = 0; i < col_len; i++)
+    //    ht[HASH(col[i], ht_len, ht_min_value)] = flags[i];
+    queue.parallel_for(col_len, [=](sycl::id<1> i) {
         ht[HASH(col[i], ht_len, ht_min_value)] = flags[i];
+    });
 }
 
-void build_key_vals_ht(int col[], int agg_col[], bool flags[], int col_len, int ht[], int ht_len, int ht_min_value)
+void build_key_vals_ht(int col[], int agg_col[], bool flags[], int col_len, int ht[], int ht_len, int ht_min_value, sycl::queue &queue)
 {
     for (int i = 0; i < col_len; i++)
     {
@@ -36,25 +39,29 @@ void filter_join(T build_col[],
                  T build_min_value,
                  T probe_col[],
                  bool probe_col_flags[],
-                 int probe_col_len)
+                 int probe_col_len, sycl::queue &queue)
 {
     int ht_len = build_max_value - build_min_value + 1;
-    bool *ht = new bool[ht_len];
-    std::fill_n(ht, ht_len, false);
+    //bool *ht = new bool[ht_len];
+    //std::fill_n(ht, ht_len, false);
+    bool *ht = sycl::malloc_shared<bool>(ht_len, queue);
+    queue.fill(ht, false, sizeof(bool) * ht_len).wait();
 
-    build_keys_ht(build_col, build_flags, build_col_len, ht, ht_len, build_min_value);
+    build_keys_ht(build_col, build_flags, build_col_len, ht, ht_len, build_min_value, queue);
 
     for (int i = 0; i < probe_col_len; i++)
         if (probe_col_flags[i])
             probe_col_flags[i] = ht[HASH(probe_col[i], ht_len, build_min_value)];
 
-    delete[] ht;
+    //delete[] ht;
+    sycl::free(ht, queue);
 }
 
+// TODO: move to GPU
 void full_join(TableData<int> &probe_table,
                TableData<int> &build_table,
                int probe_col_index,
-               int build_col_index)
+               int build_col_index, sycl::queue &queue)
 {
     int ht_len = build_table.columns[build_table.column_indices.at(build_col_index)].max_value -
                  build_table.columns[build_table.column_indices.at(build_col_index)].min_value + 1;
@@ -68,7 +75,7 @@ void full_join(TableData<int> &probe_table,
         build_table.columns[build_column].content,
         build_table.columns[build_table.column_indices.at(build_table.group_by_column)].content,
         build_table.flags, build_table.col_len, ht, ht_len,
-        build_table.columns[build_column].min_value);
+        build_table.columns[build_column].min_value, queue);
 
     for (int i = 0; i < probe_table.col_len; i++)
     {
