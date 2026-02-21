@@ -906,14 +906,18 @@ int data_driven_operator_replacement(int argc, char **argv)
         if (backend == sycl::backend::opencl) // ignore 1. opencl gpu as it is already with level_zero (leave this) 2. ignore intel gpu because it breaks (remove if fix found)
             std::cout << "\n(ignored)";
         else
+        {
             device_queues.emplace_back(
                 #if USE_FUSION
                 gpu,
                 sycl::ext::codeplay::experimental::property::queue::enable_fusion {}
-        #else
+            #else
                 gpu
                 #endif
             );
+            if (device_queues.size() == 4)
+                break;
+        }
 
         std::cout << "\n---------------------------------" << std::endl;
     }
@@ -1002,7 +1006,7 @@ int data_driven_operator_replacement(int argc, char **argv)
     // tables[4].move_column_to_device(14, 0);
 
     // for (int i = 0; i < MAX_NTABLES; i++)
-    //     tables[i].move_all_to_device(1);
+    //     tables[i].move_all_to_device(0);
 
     for (auto &gpu_queue : device_queues)
         gpu_queue.wait_and_throw();
@@ -1046,10 +1050,10 @@ int data_driven_operator_replacement(int argc, char **argv)
         #if PERFORMANCE_MEASUREMENT_ACTIVE
         std::string sql_filename = argv[1];
         std::string query_name = sql_filename.substr(sql_filename.find_last_of("/") + 1, 3);
-        std::ofstream perf_file(query_name + "-performance-hybrid-4multigpu-s20.log", std::ios::out | std::ios::trunc);
+        std::ofstream perf_file(query_name + "-performance-xpu-s100-4gpu.log", std::ios::out | std::ios::trunc);
         if (!perf_file.is_open())
         {
-            std::cerr << "Could not open performance log file: " << query_name << "-performance-hybrid-4multigpu-s20.log" << std::endl;
+            std::cerr << "Could not open performance log file: " << query_name << "-performance-xpu-s100-4gpu.log" << std::endl;
             return 1;
         }
 
@@ -1129,6 +1133,10 @@ int data_driven_operator_replacement(int argc, char **argv)
     catch (TException &e)
     {
         std::cerr << "Thrift exception: " << e.what() << std::endl;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Standard exception: " << e.what() << std::endl;
     }
     catch (...)
     {
