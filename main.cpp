@@ -860,7 +860,7 @@ int data_driven_operator_replacement(int argc, char **argv)
     CalciteServerClient client(protocol);
     std::string sql;
     sycl::queue cpu_queue{
-        sycl::cpu_selector_v,
+        sycl::default_selector_v,
 
     };
     std::vector<sycl::queue> device_queues;
