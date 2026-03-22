@@ -1407,8 +1407,15 @@ public:
 
         const std::set<int> &columns_needed = table_column_indices[table_name];
 
+        bool nrows_set = false;
         for (int i = 0; i < col_number; i++)
         {
+            if (columns_needed.find(i) == columns_needed.end())
+            {
+                columns.emplace_back();
+                continue;
+            }
+
             std::string col_name = table_name + std::to_string(i);
             std::transform(col_name.begin(), col_name.end(), col_name.begin(), ::toupper);
 
@@ -1417,24 +1424,18 @@ public:
 
             colData.seekg(0, std::ios::end);
             std::streampos fileSize = colData.tellg();
-            uint64_t num_entries = static_cast<uint64_t>(fileSize / sizeof(int));
+            uint64_t num_entries = (fileSize == std::streampos(-1)) ? 0 : static_cast<uint64_t>(fileSize / sizeof(int));
 
-            if (i == 0)
+            if (!nrows_set)
             {
                 nrows = num_entries;
                 content = sycl::malloc_host<int>(nrows, cpu_queue);
+                nrows_set = true;
             }
 
             if (num_entries != nrows)
             {
-                // throw std::runtime_error("Column length mismatch in " + filename + ": expected " + std::to_string(nrows) + ", got " + std::to_string(num_entries));
                 std::cerr << "Warning: Column length mismatch in " << filename << ": expected " << nrows << ", got " << num_entries << std::endl;
-                columns.emplace_back();
-            }
-            else if (columns_needed.find(i) == columns_needed.end())
-            {
-                // Skip loading this column
-                std::cout << "Skipping loading column " << col_name << std::endl;
                 columns.emplace_back();
             }
             else

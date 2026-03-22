@@ -1,0 +1,23 @@
+DISK_LOAD_lo_orderdate: 1122.58 ms
+DISK_LOAD_lo_discount: 1046.22 ms
+DISK_LOAD_lo_quantity: 1047.06 ms
+DISK_LOAD_lo_extendedprice: 1043.62 ms
+DISK_LOAD_d_datekey: 0.031408 ms
+DISK_LOAD_d_year: 0.009064 ms
+** LOADED DATA **
+GPU_LOAD: 346.462 ms
+GPU_LOAD: 235.263 ms
+GPU_LOAD: 235.133 ms
+GPU_LOAD: 235.288 ms
+GPU_LOAD: 0.156101 ms
+GPU_LOAD: 0.0723 ms
+** LOADED DATA TO GPU **
+Revenue: 2605756481323
+Time Taken Total: 12.9963
+{"query":13,"time_query":12.9588}
+Revenue: 2605756481323
+Time Taken Total: 12.7588
+{"query":13,"time_query":12.7406}
+Revenue: 2605756481323
+Time Taken Total: 12.753
+{"query":13,"time_query":12.7345}

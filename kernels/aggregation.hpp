@@ -225,27 +225,9 @@ public:
     }
 
     // This optimization works only on CPU, where the reduction is quite beneficial and fusion is not
-    void operator()(sycl::id<1> idx
-        #if not USE_FUSION
-        ,
-        auto &sum
-        #endif
-        ) const
+    void operator()(sycl::id<1> idx, auto &sum) const
     {
-        #if USE_FUSION
-        if (flags[idx])
-        {
-            sycl::atomic_ref<
-                uint64_t,
-                sycl::memory_order::relaxed,
-                sycl::memory_scope::device,
-                sycl::access::address_space::global_space
-            > sum_obj(*agg_res);
-            sum_obj.fetch_add(data[idx]);
-        }
-        #else
         sum.combine(data[idx] * flags[idx]);
-        #endif
     }
 };
 

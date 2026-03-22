@@ -1,0 +1,114 @@
+Found 1 GPU(s):
+---------------------------------
+Name:    Intel(R) Xeon(R) Platinum 8454H
+Vendor:  Intel(R) Corporation
+MemSize (MB): 1031724
+Max Compute Units: 128
+Platform: Intel(R) OpenCL
+Backend: opencl
+---------------------------------
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+GPU0 (Intel(R) Xeon(R) Platinum 8454H): 0 MB
+Transport opened successfully.
+Engine Breakdown: Load 491.956 ms, Kernel 595.019 ms - CPU: GPU0: Repetition 1/5 - 1086.97 ms - 1096.52 ms - 1149.7 ms
+Engine Breakdown: Load 42.8484 ms, Kernel 141.123 ms - CPU: GPU0: Repetition 2/5 - 183.972 ms - 190.274 ms - 326.443 ms
+Engine Breakdown: Load 42.0978 ms, Kernel 140.975 ms - CPU: GPU0: Repetition 3/5 - 183.073 ms - 199.256 ms - 252.598 ms
+Engine Breakdown: Load 42.2501 ms, Kernel 149.605 ms - CPU: GPU0: Repetition 4/5 - 191.855 ms - 199.203 ms - 256.398 ms
+Engine Breakdown: Load 48.8171 ms, Kernel 152.697 ms - CPU: GPU0: Repetition 5/5 - 201.514 ms - 207.762 ms - 260.408 ms
+Found 1 GPU(s):
+---------------------------------
+Name:    Intel(R) Xeon(R) Platinum 8454H
+Vendor:  Intel(R) Corporation
+MemSize (MB): 1031724
+Max Compute Units: 128
+Platform: Intel(R) OpenCL
+Backend: opencl
+---------------------------------
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+GPU0 (Intel(R) Xeon(R) Platinum 8454H): 0 MB
+Transport opened successfully.
+Engine Breakdown: Load 481.908 ms, Kernel 640.441 ms - CPU: GPU0: Repetition 1/5 - 1122.35 ms - 1130.33 ms - 1182.92 ms
+Engine Breakdown: Load 42.4277 ms, Kernel 155.518 ms - CPU: GPU0: Repetition 2/5 - 197.946 ms - 205.563 ms - 258.204 ms
+Engine Breakdown: Load 43.1214 ms, Kernel 146.923 ms - CPU: GPU0: Repetition 3/5 - 190.044 ms - 196.555 ms - 250.885 ms
+Engine Breakdown: Load 44.3316 ms, Kernel 163.168 ms - CPU: GPU0: Repetition 4/5 - 207.5 ms - 214.373 ms - 268.098 ms
+Engine Breakdown: Load 42.6418 ms, Kernel 157.092 ms - CPU: GPU0: Repetition 5/5 - 199.734 ms - 206.179 ms - 259.279 ms

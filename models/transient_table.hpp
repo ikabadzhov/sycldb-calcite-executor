@@ -24,10 +24,7 @@ private:
     std::vector<std::vector<bool>> flags_modified_devices;
     sycl::queue &cpu_queue;
     std::vector<sycl::queue> &device_queues;
-    #if USE_FUSION
-    // sycl::ext::codeplay::experimental::fusion_wrapper &fw_cpu;
-    std::vector<sycl::ext::codeplay::experimental::fusion_wrapper> &fw_devices;
-    #endif
+
     std::vector<Column *> current_columns;
     std::vector<Column> materialized_columns;
     uint64_t nrows;
@@ -40,10 +37,6 @@ public:
     TransientTable(Table *base_table,
         sycl::queue &cpu_queue,
         std::vector<sycl::queue> &device_queues,
-        #if USE_FUSION
-        sycl::ext::codeplay::experimental::fusion_wrapper &fw_cpu,
-        std::vector<sycl::ext::codeplay::experimental::fusion_wrapper> &fw_devices,
-        #endif
         memory_manager &cpu_allocator,
         std::vector<memory_manager> &device_allocators
     )
@@ -51,10 +44,7 @@ public:
         flags_modified_devices(device_queues.size()),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
-        #if USE_FUSION
-        // fw_cpu(fw_cpu),
-        fw_devices(fw_devices),
-        #endif
+
         nrows(base_table->get_nrows()),
         group_by_column(nullptr),
         group_by_column_index(0),
@@ -124,11 +114,7 @@ public:
         return out;
     }
 
-    std::pair<std::vector<sycl::event>, std::vector<std::vector<sycl::event>>> execute_pending_kernels(
-        #if USE_FUSION
-        bool fuse = true
-        #endif
-    )
+    std::pair<std::vector<sycl::event>, std::vector<std::vector<sycl::event>>> execute_pending_kernels()
     {
         // std::cout << "start execute" << std::endl;
         uint64_t segment_num = nrows / SEGMENT_SIZE + (nrows % SEGMENT_SIZE > 0);
@@ -188,16 +174,7 @@ public:
             {
                 bool kernel_present = false;
 
-                #if USE_FUSION
-                if (d >= 0 && fuse)
-                {
-                    fw_devices[d].start_fusion();
-                }
-                // else if (d == -1 && fuse)
-                // {
-                //     fw_cpu.start_fusion();
-                // }
-                #endif
+
 
                 for (const auto &phases : pending_kernels)
                 {
@@ -223,56 +200,7 @@ public:
                     }
                 }
 
-                #if USE_FUSION
-                if (d == -1)
-                {
-                    if (kernel_present)
-                    {
-                        // if (fuse)
-                        // {
-                        //     events_cpu.push_back(
-                        //         fw_cpu.complete_fusion(sycl::ext::codeplay::experimental::property::no_barriers {})
-                        //     );
-                        // }
-                        // else
-                        // {
-                        events_cpu.insert(
-                            events_cpu.end(),
-                            deps_cpu.begin(),
-                            deps_cpu.end()
-                        );
-                        // }
-                        executed_cpu = true;
-                    }
-                    // else if (fuse)
-                    // {
-                    //     fw_cpu.cancel_fusion();
-                    // }
-                }
-                else
-                {
-                    if (!kernel_present)
-                    {
-                        fw_devices[d].cancel_fusion();
-                    }
-                    else if (fuse)
-                    {
-                        events_devices[d].push_back(
-                            fw_devices[d].complete_fusion(sycl::ext::codeplay::experimental::property::no_barriers {})
-                        );
-                        executed_devices[d] = true;
-                    }
-                    else
-                    {
-                        events_devices[d].insert(
-                            events_devices[d].end(),
-                            deps_devices[d].begin(),
-                            deps_devices[d].end()
-                        );
-                        executed_devices[d] = true;
-                    }
-                }
-                #else
+
                 if (kernel_present)
                 {
                     if (d >= 0)
@@ -294,7 +222,7 @@ public:
                         executed_cpu = true;
                     }
                 }
-                #endif
+
             }
         }
 

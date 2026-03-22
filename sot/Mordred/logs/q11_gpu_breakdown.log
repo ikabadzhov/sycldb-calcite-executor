@@ -1,0 +1,20 @@
+Using device 0: NVIDIA L40S (PTX version 890, SM890, 142 SMs, 32231 free / 45468 total MB physmem, 864.096 GB/s @ 9001000 kHz mem clock, ECC on)
+DISK_LOAD_lo_orderdate: 1180.59 ms
+DISK_LOAD_lo_discount: 1163.81 ms
+DISK_LOAD_lo_quantity: 1159.49 ms
+DISK_LOAD_lo_extendedprice: 1168.33 ms
+DISK_LOAD_d_datekey: 0.028654 ms
+DISK_LOAD_d_year: 0.008867 ms
+** LOADED DATA **
+LO_LEN 600043265
+GPU_LOAD: 702.459 ms
+GPU_LOAD: 237.76 ms
+GPU_LOAD: 238.067 ms
+GPU_LOAD: 291.819 ms
+GPU_LOAD: 0.162444 ms
+GPU_LOAD: 0.075277 ms
+** LOADED DATA TO GPU **
+78552561
+Revenue: 44683458181724
+Time Taken Total: 12.9088
+{"query":11,"time_query":12.8645}
