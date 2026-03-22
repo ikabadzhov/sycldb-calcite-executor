@@ -6,7 +6,7 @@ from collections import defaultdict
 # 1. Load Mordred Results
 mordred_results = defaultdict(dict)
 try:
-    with open('/media/ivan/SYCLDB/FULLENG/sycldb-calcite-executor/mordred_sf100_results.csv', 'r') as f:
+    with open('mordred_sf100_results.csv', 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             q = row['Query'].lower().replace('.', '')
@@ -23,7 +23,7 @@ hw_mapping = {
     'Intel_Xeon_CPU': 'SYCLDB (Xeon)'
 }
 try:
-    with open('/media/ivan/SYCLDB/FULLENG/sycldb-calcite-executor/benchmark_results_final.csv', 'r') as f:
+    with open('benchmark_results_final.csv', 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             dev = row['Device']
@@ -35,7 +35,7 @@ except: pass
 # 3. Load SYCLDB Breakdown Data
 sycldb_breakdown = defaultdict(lambda: defaultdict(dict))
 try:
-    with open('/media/ivan/SYCLDB/FULLENG/sycldb-calcite-executor/benchmark_breakdown_final.csv', 'r') as f:
+    with open('benchmark_breakdown_final.csv', 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             q = row['Query'].replace('.sql', '').lower()
@@ -54,7 +54,7 @@ except: pass
 duckdb_final = {}
 try:
     duckdb_raw = defaultdict(list)
-    with open('/media/ivan/SYCLDB/FULLENG/sycldb-calcite-executor/performances/results_duckdb_s100.csv', 'r') as f:
+    with open('performances/results_duckdb_s100.csv', 'r') as f:
         reader = csv.reader(f)
         headers = next(reader)
         for row in reader:
