@@ -1000,9 +1000,9 @@ int data_driven_operator_replacement(int argc, char **argv)
         auto backend = gpu_queue.get_device().get_backend();
         auto mem_size = gpu_queue.get_device().get_info<sycl::info::device::global_mem_size>();
         if (backend == sycl::backend::ext_oneapi_level_zero)
-            device_allocators.emplace_back(gpu_queue, mem_size >> 1, ((uint64_t)2) << 30); // intel gpu fails for large allocations
+            device_allocators.emplace_back(gpu_queue, SIZE_TEMP_MEMORY_GPU, ((uint64_t)2) << 30); // intel gpu fails for large allocations
         else
-            device_allocators.emplace_back(gpu_queue, mem_size >> 1, mem_size >> 1);
+            device_allocators.emplace_back(gpu_queue, SIZE_TEMP_MEMORY_GPU, SIZE_TEMP_MEMORY_GPU);
     }
 
     try
