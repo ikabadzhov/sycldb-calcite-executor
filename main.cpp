@@ -39,6 +39,10 @@ class EndTimer3;
 
 class TestEvent;
 
+static void wait_for_dependencies_and_throw(
+    const std::vector<sycl::event> &cpu_events,
+    const std::vector<std::vector<sycl::event>> &device_events);
+
 void sycl_exception_handler(sycl::exception_list exceptions)
 {
     bool error = false;
@@ -102,7 +106,11 @@ void save_result(const TableData<int> &table_data, const std::string &data_path)
     outfile.close();
 }
 
-void save_result(const TransientTable &table, const std::string &data_path)
+void save_result(
+    TransientTable &table,
+    const std::string &data_path,
+    memory_manager &cpu_allocator,
+    std::vector<memory_manager> &device_allocators)
 {
     std::string query_name = data_path.substr(data_path.find_last_of("/") + 1, 3);
     std::cout << "Saving result to " << query_name << ".res" << std::endl;
@@ -114,7 +122,46 @@ void save_result(const TransientTable &table, const std::string &data_path)
         return;
     }
 
-    outfile << table;
+    auto materialize_dependencies = table.materialize_host_view(
+        cpu_allocator,
+        device_allocators
+    );
+    wait_for_dependencies_and_throw(
+        materialize_dependencies.first,
+        materialize_dependencies.second
+    );
+    table.assert_flags_to_cpu();
+
+    const std::vector<Column *> columns = table.get_columns();
+    const bool *flags = table.get_flags_host();
+
+    for (uint64_t row = 0; row < table.get_nrows(); row++)
+    {
+        if (!flags[row])
+            continue;
+
+        uint64_t segment_index = row / SEGMENT_SIZE;
+        uint64_t offset = row % SEGMENT_SIZE;
+        bool first = true;
+
+        for (const Column *col : columns)
+        {
+            if (col == nullptr)
+                continue;
+
+            if (!first)
+                outfile << ' ';
+
+            const Segment &segment = col->get_segments()[segment_index];
+            if (col->get_is_aggregate_result())
+                outfile << segment.get_aggregate_data(false, -1)[offset];
+            else
+                outfile << segment.get_data(false, -1)[offset];
+
+            first = false;
+        }
+        outfile << '\n';
+    }
 
     outfile.close();
 }
@@ -592,6 +639,7 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
     Table tables[MAX_NTABLES],
     sycl::queue &cpu_queue,
     std::vector<sycl::queue> &device_queues,
+    std::vector<sycl::queue> &copy_device_queues,
 
     memory_manager &cpu_allocator,
     std::vector<memory_manager> &device_allocators,
@@ -641,7 +689,12 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
         {
             for (int col_idx : exec_info.loaded_columns[rel.tables[1]])
             {
-                table_ptr->move_column_to_device(col_idx, 0);
+                const std::vector<bool> col_on_device = table_ptr->get_columns()[col_idx].get_full_col_on_device();
+                if (col_on_device.empty() || !col_on_device[0])
+                {
+                    table_ptr->move_column_to_device_background(col_idx, 0, copy_device_queues[0]);
+                    table_ptr->activate_column_background_device_buffers(col_idx, 0);
+                }
             }
         }
 
@@ -649,6 +702,7 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
             table_ptr,
             cpu_queue,
             device_queues,
+            copy_device_queues,
             cpu_allocator,
             device_allocators
         );
@@ -659,9 +713,6 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
         output_table[rel.id] = transient_tables.size() - 1;
     }
 
-    // Wait for all loads to complete
-    for (sycl::queue &q : device_queues)
-        q.wait();
     auto load_end = std::chrono::high_resolution_clock::now();
     load_time = load_end - load_start;
 
@@ -673,14 +724,6 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
         std::cout << id << " -> ";
     std::cout << std::endl;
     #endif
-
-    cpu_queue.wait();
-    for (sycl::queue &q : device_queues)
-        q.wait();
-
-    cpu_queue.single_task<InitTimer2>([=]() {}).wait();
-    for (sycl::queue &q : device_queues)
-        q.single_task<InitTimer3>([=]() {}).wait();
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -816,13 +859,15 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
         // }
     }
 
-    transient_tables[output_table[result.rels.size() - 1]].execute_pending_kernels();
+    auto final_exec_dependencies =
+        transient_tables[output_table[result.rels.size() - 1]].execute_pending_kernels();
 
     // auto pre_wait = std::chrono::high_resolution_clock::now();
 
-    cpu_queue.wait();
-    for (sycl::queue &q : device_queues)
-        q.wait();
+    wait_for_dependencies_and_throw(
+        final_exec_dependencies.first,
+        final_exec_dependencies.second
+    );
 
     auto kernel_end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> kernel_duration = kernel_end - kernel_start;
@@ -838,18 +883,36 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
     perf_out << duration.count() << '\n';
     #else
     TransientTable &final_table = transient_tables[output_table[result.rels.size() - 1]];
-
-    for (int d = 0; d < device_queues.size(); d++)
-        final_table.compress_and_sync(cpu_allocator, device_allocators[d], d);
-    final_table.execute_pending_kernels();
-    cpu_queue.wait_and_throw();
-    for (sycl::queue &q : device_queues)
-        q.wait_and_throw();
-    final_table.assert_flags_to_cpu();
-    save_result(final_table, data_path);
+    save_result(final_table, data_path, cpu_allocator, device_allocators);
     #endif
 
     return duration;
+}
+
+static void wait_for_all_queues_and_throw(
+    sycl::queue &cpu_queue,
+    std::vector<sycl::queue> &device_queues,
+    std::vector<sycl::queue> &copy_device_queues)
+{
+    cpu_queue.wait_and_throw();
+    for (sycl::queue &q : device_queues)
+        q.wait_and_throw();
+    for (sycl::queue &q : copy_device_queues)
+        q.wait_and_throw();
+}
+
+static void wait_for_dependencies_and_throw(
+    const std::vector<sycl::event> &cpu_events,
+    const std::vector<std::vector<sycl::event>> &device_events)
+{
+    if (!cpu_events.empty())
+        sycl::event::wait_and_throw(cpu_events);
+
+    for (const auto &events : device_events)
+    {
+        if (!events.empty())
+            sycl::event::wait_and_throw(events);
+    }
 }
 
 int data_driven_operator_replacement(int argc, char **argv)
@@ -864,11 +927,13 @@ int data_driven_operator_replacement(int argc, char **argv)
 
     };
     std::vector<sycl::queue> device_queues;
+    std::vector<sycl::queue> copy_device_queues;
     std::vector<sycl::device> gpus = sycl::device::get_devices();
     std::partition(gpus.begin(), gpus.end(), [](const sycl::device &d) {
         return d.is_gpu();
     });
     device_queues.reserve(gpus.size());
+    copy_device_queues.reserve(gpus.size());
 
     std::cout << "Found " << gpus.size() << " GPU(s):" << std::endl;
     std::cout << "---------------------------------" << std::endl;
@@ -891,6 +956,10 @@ int data_driven_operator_replacement(int argc, char **argv)
         {
             device_queues.emplace_back(
                 gpu
+            );
+            copy_device_queues.emplace_back(
+                gpu,
+                sycl::property::queue::in_order{}
             );
             if (device_queues.size() == 4)
                 break;
@@ -939,6 +1008,9 @@ int data_driven_operator_replacement(int argc, char **argv)
         Table("ddate", cpu_queue, device_queues),
         Table("lineorder", cpu_queue, device_queues),
     };
+
+    for (Table &table : tables)
+        table.set_copy_device_queues(copy_device_queues);
 
     for (const Table &table : tables)
     {
@@ -999,10 +1071,15 @@ int data_driven_operator_replacement(int argc, char **argv)
     {
         auto backend = gpu_queue.get_device().get_backend();
         auto mem_size = gpu_queue.get_device().get_info<sycl::info::device::global_mem_size>();
+        uint64_t allocator_size = std::min<uint64_t>(
+            std::max<uint64_t>(SIZE_TEMP_MEMORY_GPU, mem_size / 2),
+            (((uint64_t)10) << 30) + (((uint64_t)512) << 20)
+        );
+        uint64_t allocator_region_size = ((uint64_t)2) << 30;
         if (backend == sycl::backend::ext_oneapi_level_zero)
-            device_allocators.emplace_back(gpu_queue, SIZE_TEMP_MEMORY_GPU, ((uint64_t)2) << 30); // intel gpu fails for large allocations
+            device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size); // intel gpu fails for large allocations
         else
-            device_allocators.emplace_back(gpu_queue, SIZE_TEMP_MEMORY_GPU, SIZE_TEMP_MEMORY_GPU);
+            device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size);
     }
 
     try
@@ -1033,6 +1110,7 @@ int data_driven_operator_replacement(int argc, char **argv)
                 tables,
                 cpu_queue,
                 device_queues,
+                copy_device_queues,
 
                 cpu_allocator,
                 device_allocators,
@@ -1040,6 +1118,8 @@ int data_driven_operator_replacement(int argc, char **argv)
             );
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> total_time = end - start;
+
+            wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
 
             std::cout << "CPU: ";
             cpu_allocator.reset();
@@ -1049,9 +1129,7 @@ int data_driven_operator_replacement(int argc, char **argv)
                 device_allocators[d].reset();
             }
 
-            cpu_queue.wait_and_throw();
-            for (sycl::queue &q : device_queues)
-                q.wait_and_throw();
+            wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
 
             end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> after_reset = end - start;
@@ -1072,6 +1150,7 @@ int data_driven_operator_replacement(int argc, char **argv)
             tables,
             cpu_queue,
             device_queues,
+            copy_device_queues,
 
             cpu_allocator,
             device_allocators
@@ -1105,9 +1184,7 @@ int data_driven_operator_replacement(int argc, char **argv)
     std::cout << "Finished execution." << std::endl;
     #endif
 
-    cpu_queue.wait_and_throw();
-    for (sycl::queue &q : device_queues)
-        q.wait_and_throw();
+    wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
 
     #if not PERFORMANCE_MEASUREMENT_ACTIVE
     std::cout << "Finished waiting" << std::endl;

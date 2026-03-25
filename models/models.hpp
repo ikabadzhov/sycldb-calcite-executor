@@ -2,6 +2,8 @@
 
 #include <sycl/sycl.hpp>
 
+#include <algorithm>
+#include <cstring>
 #include <fstream>
 
 #include "../operations/memory_manager.hpp"
@@ -20,20 +22,32 @@ class Segment
 private:
     int *data_host;
     std::vector<int *> device_ptrs;
+    std::vector<int *> device_ptrs_secondary;
     int min, max;
     uint64_t nrows;
     sycl::queue &cpu_queue;
     std::vector<sycl::queue> &device_queues;
+    std::vector<sycl::queue> *copy_device_queues_ptr;
     std::vector<bool> on_device_vec;
+    std::vector<sycl::event> background_copy_events;
+    std::vector<bool> background_copy_active;
+    std::vector<bool> background_copy_activated;
+    bool owns_direct_host_buffer;
     bool on_device, is_aggregate_result, is_materialized, dirty_cache;
 public:
     Segment(const int *init_data, sycl::queue &cpu_queue, std::vector<sycl::queue> &device_queues, uint64_t count = SEGMENT_SIZE)
         :
         device_ptrs(device_queues.size(), nullptr),
+        device_ptrs_secondary(device_queues.size(), nullptr),
         nrows(count),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
+        copy_device_queues_ptr(nullptr),
         on_device_vec(device_queues.size(), false),
+        background_copy_events(device_queues.size()),
+        background_copy_active(device_queues.size(), false),
+        background_copy_activated(device_queues.size(), false),
+        owns_direct_host_buffer(false),
         on_device(false),
         is_aggregate_result(false),
         is_materialized(false),
@@ -46,45 +60,21 @@ public:
         }
         data_host = sycl::malloc_host<int>(count, cpu_queue);
 
-        sycl::event e;
         if (init_data != nullptr)
-            e = cpu_queue.memcpy(data_host, init_data, count * sizeof(int));
+            std::memcpy(data_host, init_data, count * sizeof(int));
         else
         {
             std::cerr << "Error: Segment not initialized" << std::endl;
             throw std::runtime_error("Segment not initialized");
         }
 
-        int *min_val = sycl::malloc_host<int>(1, cpu_queue);
-        int *max_val = sycl::malloc_host<int>(1, cpu_queue);
-        int *data = data_host;
-        min_val[0] = init_data[0];
-        max_val[0] = init_data[0];
-
-        cpu_queue.submit(
-            [&](sycl::handler &cgh)
-            {
-                cgh.depends_on(e);
-                cgh.parallel_for(
-                    sycl::range<1>(count - 1),
-                    sycl::reduction(max_val, sycl::maximum<int>()),
-                    sycl::reduction(min_val, sycl::minimum<int>()),
-                    [=](sycl::id<1> idx, auto &maxr, auto &minr)
-                    {
-                        auto j = idx[0] + 1;
-                        int val = data[j];
-                        maxr.combine(val);
-                        minr.combine(val);
-                    }
-                );
-            }
-        ).wait();
-
-        min = *min_val;
-        max = *max_val;
-
-        sycl::free(min_val, cpu_queue);
-        sycl::free(max_val, cpu_queue);
+        min = init_data[0];
+        max = init_data[0];
+        for (uint64_t i = 1; i < count; i++)
+        {
+            min = std::min(min, init_data[i]);
+            max = std::max(max, init_data[i]);
+        }
     }
 
     Segment(
@@ -97,10 +87,16 @@ public:
     )
         :
         device_ptrs(device_queues.size(), nullptr),
+        device_ptrs_secondary(device_queues.size(), nullptr),
         nrows(count),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
+        copy_device_queues_ptr(nullptr),
         on_device_vec(device_queues.size(), false),
+        background_copy_events(device_queues.size()),
+        background_copy_active(device_queues.size(), false),
+        background_copy_activated(device_queues.size(), false),
+        owns_direct_host_buffer(false),
         on_device(false),
         is_aggregate_result(false),
         is_materialized(true),
@@ -115,7 +111,7 @@ public:
         if (use_alloc_host)
             data_host = device_allocator.alloc<int>(count, false);
         else
-            data_host = cpu_allocator.alloc<int>(count, true);
+            data_host = cpu_allocator.alloc<int>(count, false);
     }
 
     Segment(
@@ -130,12 +126,18 @@ public:
     )
         :
         device_ptrs(device_queues.size(), nullptr),
+        device_ptrs_secondary(device_queues.size(), nullptr),
         min(0),
         max(0),
         nrows(count),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
+        copy_device_queues_ptr(nullptr),
         on_device_vec(device_queues.size(), false),
+        background_copy_events(device_queues.size()),
+        background_copy_active(device_queues.size(), false),
+        background_copy_activated(device_queues.size(), false),
+        owns_direct_host_buffer(false),
         on_device(on_device),
         is_aggregate_result(true),
         is_materialized(true),
@@ -156,7 +158,7 @@ public:
         {
             on_device_vec[device_index] = true;
             device_ptrs[device_index] = reinterpret_cast<int *>(init_data);
-            data_host = reinterpret_cast<int *>(device_allocators[device_index].alloc<uint64_t>(count, false));
+            data_host = nullptr;
         }
         else
         {
@@ -176,12 +178,18 @@ public:
     )
         :
         device_ptrs(device_queues.size(), nullptr),
+        device_ptrs_secondary(device_queues.size(), nullptr),
         min(0),
         max(0),
         nrows(count),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
+        copy_device_queues_ptr(nullptr),
         on_device_vec(device_queues.size(), false),
+        background_copy_events(device_queues.size()),
+        background_copy_active(device_queues.size(), false),
+        background_copy_activated(device_queues.size(), false),
+        owns_direct_host_buffer(false),
         on_device(on_device),
         is_aggregate_result(false),
         is_materialized(true),
@@ -202,7 +210,7 @@ public:
         {
             on_device_vec[device_index] = true;
             device_ptrs[device_index] = init_data;
-            data_host = device_allocators[device_index].alloc<int>(count, false);
+            data_host = nullptr;
         }
         else
         {
@@ -212,6 +220,9 @@ public:
 
     ~Segment()
     {
+        if (owns_direct_host_buffer && data_host != nullptr)
+            sycl::free(data_host, cpu_queue);
+
         if (!is_materialized)
         {
             if (data_host != nullptr)
@@ -226,9 +237,29 @@ public:
                     // std::cout << "Freeing data_device " << device_ptrs[i] << " on device " << i << std::endl;
                     sycl::free(device_ptrs[i], device_queues[i]);
                 }
+                if (device_ptrs_secondary[i] != nullptr)
+                {
+                    sycl::free(device_ptrs_secondary[i], device_queues[i]);
+                }
             }
             // std::cout << "Segment free completed" << std::endl;
         }
+    }
+
+    void ensure_host_buffer_allocated()
+    {
+        if (data_host != nullptr)
+            return;
+
+        if (is_aggregate_result)
+            data_host = reinterpret_cast<int *>(sycl::malloc_host<uint64_t>(nrows, cpu_queue));
+        else
+            data_host = sycl::malloc_host<int>(nrows, cpu_queue);
+
+        if (data_host == nullptr)
+            throw std::bad_alloc();
+
+        owns_direct_host_buffer = true;
     }
 
     bool is_on_device() const { return on_device; }
@@ -252,6 +283,11 @@ public:
                 return i;
         }
         return -1;
+    }
+
+    void set_copy_device_queues(std::vector<sycl::queue> &copy_device_queues)
+    {
+        copy_device_queues_ptr = &copy_device_queues;
     }
 
     FillKernel *fill_with_literal(int literal, bool fill_on_device, int device_index)
@@ -334,6 +370,8 @@ public:
             std::cerr << "Invalid device index " << device_index << " for get_data" << std::endl;
             throw std::runtime_error("Invalid device index for get_data");
         }
+        if (!device && is_materialized && on_device && (data_host == nullptr || dirty_cache))
+            const_cast<Segment &>(*this).copy_on_host().wait();
         return device ? device_ptrs[device_index] : data_host;
     }
 
@@ -360,6 +398,8 @@ public:
             std::cerr << "Invalid device index " << device_index << " for get_aggregate_data" << std::endl;
             throw std::runtime_error("Invalid device index for get_aggregate_data");
         }
+        if (!device && is_materialized && on_device && (data_host == nullptr || dirty_cache))
+            const_cast<Segment &>(*this).copy_on_host().wait();
         return reinterpret_cast<uint64_t *>(device ? device_ptrs[device_index] : data_host);
     }
 
@@ -409,6 +449,11 @@ public:
 
     sycl::event move_to_device(int device_index)
     {
+        return move_to_device(device_index, device_queues[device_index]);
+    }
+
+    sycl::event move_to_device(int device_index, sycl::queue &copy_queue)
+    {
         if (is_materialized || is_aggregate_result)
         {
             std::cerr << "Segment move_to_device: cannot move materialized or aggregate result segment to device" << std::endl;
@@ -423,11 +468,97 @@ public:
             return sycl::event();
 
         if (device_ptrs[device_index] == nullptr)
-            device_ptrs[device_index] = sycl::malloc_device<int>(nrows, device_queues[device_index]);
+        {
+            device_ptrs[device_index] = sycl::malloc_device<int>(nrows, copy_queue);
+            if (device_ptrs[device_index] == nullptr)
+                throw std::bad_alloc();
+        }
+        if (data_host == nullptr)
+            throw std::runtime_error("Segment move_to_device: source host buffer is null");
 
         on_device = true;
         on_device_vec[device_index] = true;
-        return device_queues[device_index].memcpy(device_ptrs[device_index], data_host, nrows * sizeof(int));
+        return copy_queue.memcpy(device_ptrs[device_index], data_host, nrows * sizeof(int));
+    }
+
+    sycl::event move_to_device_background(int device_index)
+    {
+        return move_to_device_background(device_index, device_queues[device_index]);
+    }
+
+    sycl::event move_to_device_background(int device_index, sycl::queue &copy_queue)
+    {
+        if (is_materialized || is_aggregate_result)
+        {
+            std::cerr << "Segment move_to_device_background: cannot move materialized or aggregate result segment to device" << std::endl;
+            throw std::runtime_error("Segment move_to_device_background: cannot move materialized or aggregate result segment to device");
+        }
+        if (device_index < 0 || device_index >= device_queues.size())
+        {
+            std::cerr << "Segment move_to_device_background: invalid device index " << device_index << std::endl;
+            throw std::runtime_error("Segment move_to_device_background: invalid device index");
+        }
+        if (on_device && on_device_vec[device_index])
+            return sycl::event();
+        if (background_copy_active[device_index] && !background_copy_activated[device_index])
+            return background_copy_events[device_index];
+        if (data_host == nullptr)
+            throw std::runtime_error("Segment move_to_device_background: source host buffer is null");
+
+        if (device_ptrs_secondary[device_index] == nullptr)
+        {
+            device_ptrs_secondary[device_index] = sycl::malloc_device<int>(nrows, copy_queue);
+            if (device_ptrs_secondary[device_index] == nullptr)
+                throw std::bad_alloc();
+        }
+
+        background_copy_events[device_index] = copy_queue.memcpy(
+            device_ptrs_secondary[device_index],
+            data_host,
+            nrows * sizeof(int)
+        );
+        background_copy_active[device_index] = true;
+        background_copy_activated[device_index] = false;
+
+        return background_copy_events[device_index];
+    }
+
+    bool has_background_copy(int device_index) const
+    {
+        return device_index >= 0
+            && device_index < background_copy_events.size()
+            && background_copy_active[device_index];
+    }
+
+    sycl::event get_background_copy_event(int device_index) const
+    {
+        if (!has_background_copy(device_index))
+            return sycl::event();
+
+        return background_copy_events[device_index];
+    }
+
+    void activate_background_buffer(int device_index)
+    {
+        if (!has_background_copy(device_index) || background_copy_activated[device_index])
+            return;
+
+        std::swap(device_ptrs[device_index], device_ptrs_secondary[device_index]);
+        on_device = true;
+        on_device_vec[device_index] = true;
+        background_copy_activated[device_index] = true;
+    }
+
+    void promote_background_buffer(int device_index)
+    {
+        if (!has_background_copy(device_index))
+            return;
+
+        if (!background_copy_activated[device_index])
+            activate_background_buffer(device_index);
+        background_copy_events[device_index].wait();
+        background_copy_active[device_index] = false;
+        background_copy_activated[device_index] = false;
     }
 
     sycl::event copy_on_host()
@@ -436,18 +567,21 @@ public:
 
         if (on_device && dirty_cache && is_materialized)
         {
+            ensure_host_buffer_allocated();
+            std::vector<sycl::queue> &copy_queues =
+                copy_device_queues_ptr != nullptr ? *copy_device_queues_ptr : device_queues;
             for (int i = 0; i < device_queues.size(); i++)
             {
                 if (on_device_vec[i])
                 {
                     if (is_aggregate_result)
-                        e = device_queues[i].memcpy(
+                        e = copy_queues[i].memcpy(
                             reinterpret_cast<uint64_t *>(data_host),
                             reinterpret_cast<uint64_t *>(device_ptrs[i]),
                             nrows * sizeof(uint64_t)
                         );
                     else
-                        e = device_queues[i].memcpy(data_host, device_ptrs[i], nrows * sizeof(int));
+                        e = copy_queues[i].memcpy(data_host, device_ptrs[i], nrows * sizeof(int));
                     break;
                 }
             }
@@ -470,8 +604,10 @@ public:
         std::string parent_op,
         memory_manager &cpu_allocator,
         std::vector<memory_manager> &device_allocators,
-        bool *cpu_flags,
-        std::vector<bool *> &device_flags) const
+        const bool *cpu_input_flags,
+        bool *cpu_output_flags,
+        const std::vector<bool *> &device_input_flags,
+        const std::vector<bool *> &device_output_flags) const
     {
         int device_index = -1;
         if (on_device)
@@ -484,8 +620,9 @@ public:
             }
         }
         memory_manager &allocator = on_device ? device_allocators[device_index] : cpu_allocator;
-        int *data = on_device ? device_ptrs[device_index] : data_host;
-        bool *flags = on_device ? device_flags[device_index] : cpu_flags;
+        const int *data = get_data(on_device, device_index);
+        const bool *input_flags = on_device ? device_input_flags[device_index] : cpu_input_flags;
+        bool *output_flags = on_device ? device_output_flags[device_index] : cpu_output_flags;
 
         bool *local_flags = allocator.alloc<bool>(nrows, true);
 
@@ -564,15 +701,16 @@ public:
 
         operations.add_kernel(
             KernelData(
-                KernelType::LogicalKernel,
-                new LogicalKernel(
-                    logic,
-                    flags,
-                    local_flags,
-                    nrows
+                    KernelType::LogicalKernel,
+                    new LogicalKernel(
+                        logic,
+                        input_flags,
+                        local_flags,
+                        output_flags,
+                        nrows
+                    )
                 )
-            )
-        );
+            );
 
         return operations;
     }
@@ -581,12 +719,15 @@ public:
         std::string op,
         std::string parent_op,
         int literal_value,
-        bool *flags,
+        bool filter_on_device,
+        const bool *input_flags,
+        bool *output_flags,
         int device_index) const
     {
         return new SelectionKernelLiteral(
-            flags,
-            on_device ? device_ptrs[device_index] : data_host,
+            input_flags,
+            output_flags,
+            get_data(filter_on_device, device_index),
             op,
             literal_value,
             parent_op,
@@ -598,14 +739,17 @@ public:
         std::string op,
         std::string parent_op,
         const Segment &other_segment,
-        bool *flags,
+        bool filter_on_device,
+        const bool *input_flags,
+        bool *output_flags,
         int device_index) const
     {
         return new SelectionKernelColumns(
-            flags,
-            on_device ? device_ptrs[device_index] : data_host,
+            input_flags,
+            output_flags,
+            get_data(filter_on_device, device_index),
             op,
-            other_segment.get_data(on_device, device_index),
+            other_segment.get_data(filter_on_device, device_index),
             parent_op,
             nrows
         );
@@ -705,7 +849,7 @@ public:
         uint64_t *agg_res) const
     {
         return new AggregateOperationKernel(
-            aggregate_on_device ? device_ptrs[device_index] : data_host,
+            get_data(aggregate_on_device, device_index),
             flags,
             nrows,
             agg_res
@@ -717,12 +861,13 @@ public:
         const bool *flags,
         int ht_len,
         int ht_min_value,
+        bool build_on_device,
         int device_index
     ) const
     {
         return new BuildKeysHTKernel(
             ht,
-            on_device ? device_ptrs[device_index] : data_host,
+            get_data(build_on_device, device_index),
             flags,
             ht_len,
             ht_min_value,
@@ -731,15 +876,18 @@ public:
     }
 
     FilterJoinKernel *semi_join_operator(
-        bool *probe_flags,
+        const bool *probe_flags_input,
+        bool *probe_flags_output,
         int build_min_value,
         int build_max_value,
         const bool *build_ht,
+        bool probe_on_device,
         int device_index) const
     {
         return new FilterJoinKernel(
-            on_device ? device_ptrs[device_index] : data_host,
-            probe_flags,
+            get_data(probe_on_device, device_index),
+            probe_flags_input,
+            probe_flags_output,
             build_ht,
             build_min_value,
             build_max_value,
@@ -766,8 +914,8 @@ public:
 
         return new BuildKeyValsHTKernel(
             ht,
-            build_on_device ? device_ptrs[device_index] : data_host,
-            build_on_device ? value_segment.device_ptrs[device_index] : value_segment.data_host,
+            get_data(build_on_device, device_index),
+            value_segment.get_data(build_on_device, device_index),
             flags,
             ht_len,
             ht_min_value,
@@ -777,7 +925,8 @@ public:
 
     FullJoinKernel *full_join_operator(
         Segment &result_segment,
-        bool *probe_flags,
+        const bool *probe_flags_input,
+        bool *probe_flags_output,
         const int *ht,
         int ht_min_value,
         int ht_max_value,
@@ -794,9 +943,10 @@ public:
         }
 
         return new FullJoinKernel(
-            ht_on_device ? device_ptrs[device_index] : data_host,
-            ht_on_device ? result_segment.device_ptrs[device_index] : result_segment.data_host,
-            probe_flags,
+            get_data(ht_on_device, device_index),
+            result_segment.get_data(ht_on_device, device_index),
+            probe_flags_input,
+            probe_flags_output,
             ht,
             ht_min_value,
             ht_max_value,
@@ -820,7 +970,7 @@ public:
     {
         return new GroupByAggregateKernel(
             contents,
-            aggregate_on_device ? device_ptrs[device_index] : data_host,
+            get_data(aggregate_on_device, device_index),
             max,
             min,
             flags,
@@ -838,10 +988,14 @@ public:
     sycl::event compress_sync(
         int *row_ids_device,
         int *row_ids_host,
+        const uint32_t *selected_count_device,
+        const uint32_t *selected_count_host,
+        sycl::event &e_selected_count_host,
         sycl::event &e_row_ids_host,
-        uint64_t nrows_selected,
+        uint64_t max_rows,
         memory_manager &device_allocator,
-        int device_index)
+        int device_index,
+        sycl::queue &copy_queue)
     {
         if (is_aggregate_result)
         {
@@ -854,30 +1008,34 @@ public:
             throw std::runtime_error("Compress operator: segment not on device");
         }
 
-        int *data_device_compressed = device_allocator.alloc<int>(nrows_selected, true);
-        int *data_host_compressed = device_allocator.alloc<int>(nrows_selected, false);
+        int *data_device_compressed = device_allocator.alloc<int>(max_rows, true);
+        int *data_host_compressed = device_allocator.alloc<int>(max_rows, false);
         int *device_ptr = device_ptrs[device_index];
+        ensure_host_buffer_allocated();
         int *host_ptr = data_host;
 
         auto e1 = device_queues[device_index].submit(
             [&](sycl::handler &cgh)
             {
                 cgh.parallel_for(
-                    nrows_selected,
+                    max_rows,
                     [=](sycl::id<1> idx)
                     {
                         auto i = idx[0];
-                        int row_id = row_ids_device[i];
-                        data_device_compressed[i] = device_ptr[row_id];
+                        if (i < *selected_count_device)
+                        {
+                            int row_id = row_ids_device[i];
+                            data_device_compressed[i] = device_ptr[row_id];
+                        }
                     }
                 );
             }
         );
 
-        auto e2 = device_queues[device_index].memcpy(
+        auto e2 = copy_queue.memcpy(
             data_host_compressed,
             data_device_compressed,
-            nrows_selected * sizeof(int),
+            max_rows * sizeof(int),
             e1
         );
 
@@ -885,14 +1043,18 @@ public:
             [&](sycl::handler &cgh)
             {
                 cgh.depends_on(e2);
+                cgh.depends_on(e_selected_count_host);
                 cgh.depends_on(e_row_ids_host);
                 cgh.parallel_for(
-                    nrows_selected,
+                    max_rows,
                     [=](sycl::id<1> idx)
                     {
                         auto i = idx[0];
-                        int row_id = row_ids_host[i];
-                        host_ptr[row_id] = data_host_compressed[i];
+                        if (i < *selected_count_host)
+                        {
+                            int row_id = row_ids_host[i];
+                            host_ptr[row_id] = data_host_compressed[i];
+                        }
                     }
                 );
             }
@@ -1036,6 +1198,12 @@ public:
     std::vector<Segment> &get_segments() { return segments; }
     bool get_is_aggregate_result() const { return is_aggregate_result; }
 
+    void set_copy_device_queues(std::vector<sycl::queue> &copy_device_queues)
+    {
+        for (auto &seg : segments)
+            seg.set_copy_device_queues(copy_device_queues);
+    }
+
     bool is_all_on_same_device() const
     {
         int device_index = segments[0].get_device_index();
@@ -1149,12 +1317,72 @@ public:
             seg.move_to_device(device_index);
     }
 
+    void move_all_to_device(int device_index, sycl::queue &copy_queue)
+    {
+        for (auto &seg : segments)
+            seg.move_to_device(device_index, copy_queue);
+    }
+
+    void move_all_to_device_background(int device_index)
+    {
+        for (auto &seg : segments)
+            seg.move_to_device_background(device_index);
+    }
+
+    void move_all_to_device_background(int device_index, sycl::queue &copy_queue)
+    {
+        for (auto &seg : segments)
+            seg.move_to_device_background(device_index, copy_queue);
+    }
+
+    void promote_background_device_buffers(int device_index)
+    {
+        for (auto &seg : segments)
+            seg.promote_background_buffer(device_index);
+    }
+
     void move_to_device(int device_index, const std::vector<bool> &segments_choices = {})
     {
         for (int i = 0; i < segments.size(); i++)
         {
             if (segments_choices.size() <= i || segments_choices[i])
                 segments[i].move_to_device(device_index);
+        }
+    }
+
+    void move_to_device(int device_index, sycl::queue &copy_queue, const std::vector<bool> &segments_choices = {})
+    {
+        for (int i = 0; i < segments.size(); i++)
+        {
+            if (segments_choices.size() <= i || segments_choices[i])
+                segments[i].move_to_device(device_index, copy_queue);
+        }
+    }
+
+    void move_to_device_background(int device_index, const std::vector<bool> &segments_choices = {})
+    {
+        for (int i = 0; i < segments.size(); i++)
+        {
+            if (segments_choices.size() <= i || segments_choices[i])
+                segments[i].move_to_device_background(device_index);
+        }
+    }
+
+    void move_to_device_background(int device_index, sycl::queue &copy_queue, const std::vector<bool> &segments_choices = {})
+    {
+        for (int i = 0; i < segments.size(); i++)
+        {
+            if (segments_choices.size() <= i || segments_choices[i])
+                segments[i].move_to_device_background(device_index, copy_queue);
+        }
+    }
+
+    void activate_background_device_buffers(int device_index, const std::vector<bool> &segments_choices = {})
+    {
+        for (int i = 0; i < segments.size(); i++)
+        {
+            if (segments_choices.size() <= i || segments_choices[i])
+                segments[i].activate_background_buffer(device_index);
         }
     }
 
@@ -1204,6 +1432,7 @@ public:
                         flags + i * SEGMENT_SIZE,
                         ht_len,
                         min_value,
+                        on_device,
                         device_index
                     )
                 )
@@ -1215,8 +1444,10 @@ public:
     }
 
     std::vector<KernelBundle> semi_join(
-        bool *probe_flags_cpu,
-        std::vector<bool *> &probe_flags_devices,
+        const bool *probe_flags_cpu_input,
+        bool *probe_flags_cpu_output,
+        const std::vector<bool *> &probe_flags_devices_input,
+        const std::vector<bool *> &probe_flags_devices_output,
         int build_min_value,
         int build_max_value,
         const bool *ht_cpu,
@@ -1239,10 +1470,12 @@ public:
                 KernelData(
                     KernelType::FilterJoinKernel,
                     seg.semi_join_operator(
-                        (on_device ? probe_flags_devices[device_index] : probe_flags_cpu) + i * SEGMENT_SIZE,
+                        (on_device ? probe_flags_devices_input[device_index] : probe_flags_cpu_input) + i * SEGMENT_SIZE,
+                        (on_device ? probe_flags_devices_output[device_index] : probe_flags_cpu_output) + i * SEGMENT_SIZE,
                         build_min_value,
                         build_max_value,
                         on_device ? ht_devices[device_index] : ht_cpu,
+                        on_device,
                         device_index
                     )
                 )
@@ -1300,8 +1533,10 @@ public:
     }
 
     std::vector<KernelBundle> full_join_operation(
-        bool *probe_flags_host,
-        std::vector<bool *> &probe_flags_devices,
+        const bool *probe_flags_host_input,
+        bool *probe_flags_host_output,
+        const std::vector<bool *> &probe_flags_devices_input,
+        const std::vector<bool *> &probe_flags_devices_output,
         int build_min_value,
         int build_max_value,
         int group_by_column_min,
@@ -1341,7 +1576,8 @@ public:
                                 KernelType::FullJoinKernel,
                                 seg.full_join_operator(
                                     new_seg,
-                                    probe_flags_devices[d] + i * SEGMENT_SIZE,
+                                    probe_flags_devices_input[d] + i * SEGMENT_SIZE,
+                                    probe_flags_devices_output[d] + i * SEGMENT_SIZE,
                                     build_hts_devices[d],
                                     build_min_value,
                                     build_max_value,
@@ -1371,7 +1607,8 @@ public:
                         KernelType::FullJoinKernel,
                         seg.full_join_operator(
                             new_seg,
-                            probe_flags_host + i * SEGMENT_SIZE,
+                            probe_flags_host_input + i * SEGMENT_SIZE,
+                            probe_flags_host_output + i * SEGMENT_SIZE,
                             build_ht_host,
                             build_min_value,
                             build_max_value,
@@ -1454,6 +1691,12 @@ public:
     const std::vector<Column> &get_columns() const { return columns; }
     const std::string &get_name() const { return table_name; }
 
+    void set_copy_device_queues(std::vector<sycl::queue> &copy_device_queues)
+    {
+        for (auto &col : columns)
+            col.set_copy_device_queues(copy_device_queues);
+    }
+
     uint64_t get_data_size(bool gpu_only, int device_index) const
     {
         uint64_t total_size = 0;
@@ -1468,12 +1711,68 @@ public:
             col.move_all_to_device(device_index);
     }
 
+    void move_all_to_device(int device_index, sycl::queue &copy_queue)
+    {
+        for (auto &col : columns)
+            col.move_all_to_device(device_index, copy_queue);
+    }
+
+    void move_all_to_device_background(int device_index)
+    {
+        for (auto &col : columns)
+            col.move_all_to_device_background(device_index);
+    }
+
+    void move_all_to_device_background(int device_index, sycl::queue &copy_queue)
+    {
+        for (auto &col : columns)
+            col.move_all_to_device_background(device_index, copy_queue);
+    }
+
+    void promote_background_device_buffers(int device_index)
+    {
+        for (auto &col : columns)
+            col.promote_background_device_buffers(device_index);
+    }
+
     void move_column_to_device(int col_index, int device_index, const std::vector<bool> &segments = {})
     {
         if (segments.empty())
             columns[col_index].move_all_to_device(device_index);
         else
             columns[col_index].move_to_device(device_index, segments);
+    }
+
+    void move_column_to_device(int col_index, int device_index, sycl::queue &copy_queue, const std::vector<bool> &segments = {})
+    {
+        if (segments.empty())
+            columns[col_index].move_all_to_device(device_index, copy_queue);
+        else
+            columns[col_index].move_to_device(device_index, copy_queue, segments);
+    }
+
+    void move_column_to_device_background(int col_index, int device_index, const std::vector<bool> &segments = {})
+    {
+        if (segments.empty())
+            columns[col_index].move_all_to_device_background(device_index);
+        else
+            columns[col_index].move_to_device_background(device_index, segments);
+    }
+
+    void move_column_to_device_background(int col_index, int device_index, sycl::queue &copy_queue, const std::vector<bool> &segments = {})
+    {
+        if (segments.empty())
+            columns[col_index].move_all_to_device_background(device_index, copy_queue);
+        else
+            columns[col_index].move_to_device_background(device_index, copy_queue, segments);
+    }
+
+    void activate_column_background_device_buffers(int col_index, int device_index, const std::vector<bool> &segments = {})
+    {
+        if (segments.empty())
+            columns[col_index].activate_background_device_buffers(device_index);
+        else
+            columns[col_index].activate_background_device_buffers(device_index, segments);
     }
 
     uint64_t num_segments() const

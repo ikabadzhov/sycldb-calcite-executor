@@ -2,6 +2,8 @@
 
 #include <sycl/sycl.hpp>
 
+#include <optional>
+#include <deque>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/iterator>
@@ -18,15 +20,28 @@
 class TransientTable
 {
 private:
+    struct AsyncRowIds
+    {
+        int *row_ids_device;
+        int *row_ids_host;
+        uint32_t *selected_count_device;
+        uint32_t *selected_count_host;
+        sycl::event selected_count_copy_event;
+        sycl::event row_ids_copy_event;
+    };
+
     bool *flags_host;
+    bool *flags_host_secondary;
     std::vector<bool *> flags_devices;
+    std::vector<bool *> flags_devices_secondary;
     std::vector<bool> flags_modified_host;
     std::vector<std::vector<bool>> flags_modified_devices;
     sycl::queue &cpu_queue;
     std::vector<sycl::queue> &device_queues;
+    std::vector<sycl::queue> &copy_device_queues;
 
     std::vector<Column *> current_columns;
-    std::vector<Column> materialized_columns;
+    std::deque<Column> materialized_columns;
     uint64_t nrows;
     Column *group_by_column;
     uint64_t group_by_column_index;
@@ -37,6 +52,7 @@ public:
     TransientTable(Table *base_table,
         sycl::queue &cpu_queue,
         std::vector<sycl::queue> &device_queues,
+        std::vector<sycl::queue> &copy_device_queues,
         memory_manager &cpu_allocator,
         std::vector<memory_manager> &device_allocators
     )
@@ -44,6 +60,7 @@ public:
         flags_modified_devices(device_queues.size()),
         cpu_queue(cpu_queue),
         device_queues(device_queues),
+        copy_device_queues(copy_device_queues),
 
         nrows(base_table->get_nrows()),
         group_by_column(nullptr),
@@ -52,15 +69,18 @@ public:
     {
         // std::cout << "Creating transient table with " << nrows << " rows." << std::endl;
 
-        flags_host = cpu_allocator.alloc<bool>(nrows, true);
+        flags_host = cpu_allocator.alloc<bool>(nrows, false);
+        flags_host_secondary = nullptr;
         auto e1 = cpu_queue.fill<bool>(flags_host, true, nrows);
 
         std::vector<sycl::event> gpu_events;
         gpu_events.reserve(device_queues.size());
         flags_devices.reserve(device_queues.size());
+        flags_devices_secondary.reserve(device_queues.size());
         for (int d = 0; d < device_queues.size(); d++)
         {
             flags_devices.push_back(device_allocators[d].alloc<bool>(nrows, true));
+            flags_devices_secondary.push_back(nullptr);
             gpu_events.push_back(
                 device_queues[d].fill<bool>(flags_devices[d], true, nrows)
             );
@@ -78,21 +98,210 @@ public:
         for (const Column &col : base_columns)
             current_columns.push_back(const_cast<Column *>(&col));
 
-        materialized_columns.reserve(50);
+        pending_kernels_dependencies_cpu.push_back(e1);
+        for (int d = 0; d < device_queues.size(); d++)
+        {
+            pending_kernels_dependencies_devices[d].reserve(segment_num);
+            for (uint64_t segment_index = 0; segment_index < segment_num; segment_index++)
+            {
+                std::vector<sycl::event> deps = { gpu_events[d] };
 
-        sycl::event::wait(gpu_events);
-        e1.wait();
+                for (const Column *col : current_columns)
+                {
+                    if (col == nullptr)
+                        continue;
+
+                    const std::vector<Segment> &segments = col->get_segments();
+                    if (segment_index >= segments.size())
+                        continue;
+
+                    const Segment &seg = segments[segment_index];
+                    if (seg.is_on_device(d) && seg.has_background_copy(d))
+                        deps.push_back(seg.get_background_copy_event(d));
+                }
+
+                pending_kernels_dependencies_devices[d].push_back(
+                    device_queues[d].submit(
+                        [&](sycl::handler &cgh)
+                        {
+                            cgh.depends_on(deps);
+                            cgh.single_task([=]() {});
+                        }
+                    )
+                );
+            }
+        }
         // std::cout << "Transient table created." << std::endl;
+    }
+
+    ~TransientTable()
+    {
     }
 
     std::vector<Column *> get_columns() const { return current_columns; }
     uint64_t get_nrows() const { return nrows; }
     const Column *get_group_by_column() const { return group_by_column; }
+    const bool *get_flags_host() const { return flags_host; }
+    std::vector<Column *> get_active_columns() const
+    {
+        std::vector<Column *> cols;
+        cols.reserve(current_columns.size());
+        for (Column *col : current_columns)
+        {
+            if (col != nullptr)
+                cols.push_back(col);
+        }
+        return cols;
+    }
+
+    std::pair<std::vector<sycl::event>, std::vector<std::vector<sycl::event>>> materialize_host_view(
+        memory_manager &cpu_allocator,
+        std::vector<memory_manager> &device_allocators,
+        const std::vector<Column *> &columns_to_sync = {})
+    {
+        std::vector<Column *> target_columns =
+            columns_to_sync.empty() ? get_active_columns() : columns_to_sync;
+        ensure_host_state_available(target_columns, cpu_allocator, device_allocators);
+        return execute_pending_kernels();
+    }
 
     void set_group_by_column(uint64_t col)
     {
         group_by_column = current_columns[col];
         group_by_column_index = col;
+    }
+
+    Column &register_materialized_column(Column &col)
+    {
+        col.set_copy_device_queues(copy_device_queues);
+        return col;
+    }
+
+    void ensure_secondary_host_flags(memory_manager &cpu_allocator)
+    {
+        if (flags_host_secondary != nullptr)
+            return;
+
+        flags_host_secondary = cpu_allocator.alloc<bool>(nrows, false);
+    }
+
+    void ensure_primary_host_flags(memory_manager &cpu_allocator)
+    {
+        if (flags_host != nullptr)
+            return;
+
+        flags_host = cpu_allocator.alloc<bool>(nrows, false);
+        uint64_t segment_num = nrows / SEGMENT_SIZE + (nrows % SEGMENT_SIZE > 0);
+        flags_modified_host.resize(segment_num, false);
+    }
+
+    void ensure_secondary_device_flags(int device_index, std::vector<memory_manager> &device_allocators)
+    {
+        if (flags_devices_secondary[device_index] != nullptr)
+            return;
+
+        flags_devices_secondary[device_index] = device_allocators[device_index].alloc<bool>(nrows, true);
+    }
+
+    void ensure_secondary_flag_buffers(
+        bool host_needed,
+        const std::vector<bool> &devices_needed,
+        memory_manager &cpu_allocator,
+        std::vector<memory_manager> &device_allocators)
+    {
+        if (host_needed)
+            ensure_secondary_host_flags(cpu_allocator);
+
+        for (int d = 0; d < device_queues.size(); d++)
+        {
+            if (devices_needed[d])
+                ensure_secondary_device_flags(d, device_allocators);
+        }
+    }
+
+    bool column_needs_host_sync_on_device(const Column *column, int device_index) const
+    {
+        if (column == nullptr)
+            return false;
+
+        for (const Segment &segment : column->get_segments())
+        {
+            if (segment.is_on_device(device_index) && segment.needs_copy_on(false, -1))
+                return true;
+        }
+
+        return false;
+    }
+
+    void ensure_host_state_available(
+        const std::vector<Column *> &columns_to_sync,
+        memory_manager &cpu_allocator,
+        std::vector<memory_manager> &device_allocators)
+    {
+        ensure_primary_host_flags(cpu_allocator);
+
+        for (int d = 0; d < device_queues.size(); d++)
+        {
+            bool need_sync = false;
+            for (bool modified : flags_modified_devices[d])
+            {
+                if (modified)
+                {
+                    need_sync = true;
+                    break;
+                }
+            }
+
+            if (!need_sync)
+            {
+                for (const Column *column : columns_to_sync)
+                {
+                    if (column_needs_host_sync_on_device(column, d))
+                    {
+                        need_sync = true;
+                        break;
+                    }
+                }
+            }
+
+            if (need_sync)
+                compress_and_sync(cpu_allocator, device_allocators[d], d, columns_to_sync);
+        }
+    }
+
+    void ensure_host_flags_available(
+        memory_manager &cpu_allocator,
+        std::vector<memory_manager> &device_allocators)
+    {
+        ensure_host_state_available({}, cpu_allocator, device_allocators);
+    }
+
+    void swap_flag_buffers(bool host_touched, const std::vector<bool> &device_touched)
+    {
+        if (host_touched && flags_host_secondary != nullptr)
+            std::swap(flags_host, flags_host_secondary);
+
+        for (int d = 0; d < device_queues.size(); d++)
+        {
+            if (device_touched[d] && flags_devices_secondary[d] != nullptr)
+                std::swap(flags_devices[d], flags_devices_secondary[d]);
+        }
+    }
+
+    void swap_flag_buffers(const std::vector<KernelBundle> &ops)
+    {
+        bool host_touched = false;
+        std::vector<bool> device_touched(device_queues.size(), false);
+
+        for (const auto &bundle : ops)
+        {
+            if (bundle.is_on_device())
+                device_touched[bundle.get_device_index()] = true;
+            else
+                host_touched = true;
+        }
+
+        swap_flag_buffers(host_touched, device_touched);
     }
 
     friend std::ostream &operator<<(std::ostream &out, const TransientTable &table)
@@ -155,6 +364,8 @@ public:
         {
             std::vector<sycl::event> deps_cpu, tmp;
             std::vector<std::vector<sycl::event>> deps_devices(device_queues.size());
+            bool kernel_present_cpu = false;
+            std::vector<bool> kernel_present_devices(device_queues.size(), false);
 
             for (int d = 0; d < device_queues.size(); d++)
             {
@@ -169,60 +380,50 @@ public:
             else
                 deps_cpu = pending_kernels_dependencies_cpu;
 
-
-            for (int d = -1; d < (int)device_queues.size(); d++)
+            for (const auto &phases : pending_kernels)
             {
-                bool kernel_present = false;
+                const KernelBundle &bundle = phases[segment_index];
+                tmp = bundle.execute(
+                    cpu_queue,
+                    device_queues,
+                    deps_cpu,
+                    deps_devices
+                );
 
-
-
-                for (const auto &phases : pending_kernels)
+                if (bundle.is_on_device())
                 {
-                    const KernelBundle &bundle = phases[segment_index];
-                    bool on_device = bundle.is_on_device();
                     int device_index = bundle.get_device_index();
-
-                    if ((d == -1 && !on_device) || (d >= 0 && d == device_index))
-                    {
-                        tmp = bundle.execute(
-                            cpu_queue,
-                            device_queues,
-                            deps_cpu,
-                            deps_devices
-                        );
-
-                        if (on_device)
-                            deps_devices[d] = std::move(tmp);
-                        else
-                            deps_cpu = std::move(tmp);
-
-                        kernel_present = true;
-                    }
+                    deps_devices[device_index] = std::move(tmp);
+                    kernel_present_devices[device_index] = true;
                 }
-
-
-                if (kernel_present)
+                else
                 {
-                    if (d >= 0)
-                    {
-                        events_devices[d].insert(
-                            events_devices[d].end(),
-                            deps_devices[d].begin(),
-                            deps_devices[d].end()
-                        );
-                        executed_devices[d] = true;
-                    }
-                    else
-                    {
-                        events_cpu.insert(
-                            events_cpu.end(),
-                            deps_cpu.begin(),
-                            deps_cpu.end()
-                        );
-                        executed_cpu = true;
-                    }
+                    deps_cpu = std::move(tmp);
+                    kernel_present_cpu = true;
                 }
+            }
 
+            if (kernel_present_cpu)
+            {
+                events_cpu.insert(
+                    events_cpu.end(),
+                    deps_cpu.begin(),
+                    deps_cpu.end()
+                );
+                executed_cpu = true;
+            }
+
+            for (int d = 0; d < device_queues.size(); d++)
+            {
+                if (!kernel_present_devices[d])
+                    continue;
+
+                events_devices[d].insert(
+                    events_devices[d].end(),
+                    deps_devices[d].begin(),
+                    deps_devices[d].end()
+                );
+                executed_devices[d] = true;
             }
         }
 
@@ -262,11 +463,11 @@ public:
         }
     }
 
-    uint64_t count_flags_true(bool on_device, int device_index)
+    AsyncCountResult count_flags_true(bool on_device, int device_index)
     {
         auto dependencies = execute_pending_kernels();
 
-        return count_true_flags(
+        return count_true_flags_async(
             on_device ? flags_devices[device_index] : flags_host,
             nrows,
             on_device ? device_queues[device_index] : cpu_queue,
@@ -274,30 +475,70 @@ public:
         );
     }
 
-    // This function is a sync point due to oneDPL algorithms and needs dependencies to be waited manually before calling it
-    std::tuple<int *, uint64_t> build_row_ids(int segment_n, int segment_size, memory_manager &gpu_allocator, int device_index)
+    AsyncRowIds build_row_ids(
+        int segment_n,
+        int segment_size,
+        memory_manager &gpu_allocator,
+        int device_index,
+        const std::vector<sycl::event> &dependencies = {}
+    )
     {
         bool *flags = flags_devices[device_index] + segment_n * SEGMENT_SIZE;
         int *row_ids_gpu = gpu_allocator.alloc<int>(segment_size, true);
+        int *row_ids_host = gpu_allocator.alloc<int>(segment_size, false);
+        uint32_t *selected_count_device = gpu_allocator.alloc<uint32_t>(1, true);
+        uint32_t *selected_count_host = gpu_allocator.alloc<uint32_t>(1, false);
 
-        auto policy = oneapi::dpl::execution::make_device_policy(device_queues[device_index]);
-        auto start_index = oneapi::dpl::counting_iterator<int>(0);
-        auto end_index = oneapi::dpl::counting_iterator<int>(segment_size);
-
-        auto end_ptr = oneapi::dpl::copy_if(
-            policy,
-            start_index,
-            end_index,
-            row_ids_gpu,
-            [=](int i)
+        auto e_init = device_queues[device_index].fill<uint32_t>(selected_count_device, 0u, 1);
+        auto e_build = device_queues[device_index].submit(
+            [&](sycl::handler &cgh)
             {
-                return flags[i];
+                if (!dependencies.empty())
+                    cgh.depends_on(dependencies);
+                cgh.depends_on(e_init);
+                cgh.parallel_for(
+                    sycl::range<1>(segment_size),
+                    [=](sycl::id<1> idx)
+                    {
+                        auto i = idx[0];
+                        if (!flags[i])
+                            return;
+
+                        sycl::atomic_ref<
+                            uint32_t,
+                            sycl::memory_order::relaxed,
+                            sycl::memory_scope::device,
+                            sycl::access::address_space::global_space
+                        > count_atomic(*selected_count_device);
+                        uint32_t pos = count_atomic.fetch_add(1);
+                        row_ids_gpu[pos] = i;
+                    }
+                );
             }
         );
 
-        uint64_t n_selected = end_ptr - row_ids_gpu;
+        auto e_count_copy = copy_device_queues[device_index].memcpy(
+            selected_count_host,
+            selected_count_device,
+            sizeof(uint32_t),
+            e_build
+        );
 
-        return { row_ids_gpu, n_selected };
+        auto e_row_ids_copy = copy_device_queues[device_index].memcpy(
+            row_ids_host,
+            row_ids_gpu,
+            segment_size * sizeof(int),
+            e_build
+        );
+
+        return {
+            row_ids_gpu,
+            row_ids_host,
+            selected_count_device,
+            selected_count_host,
+            e_count_copy,
+            e_row_ids_copy
+        };
     }
 
     // This is a sync point
@@ -310,27 +551,25 @@ public:
         }
 
         int num_segments = nrows / SEGMENT_SIZE + (nrows % SEGMENT_SIZE > 0);
-        std::vector<uint64_t> n_rows_new(num_segments);
-        execute_pending_kernels();
-
-        device_queues[device_index].wait();
+        ensure_primary_host_flags(cpu_allocator);
+        auto dependencies = execute_pending_kernels();
+        std::vector<sycl::event> cpu_sync_events;
+        cpu_sync_events.reserve(num_segments * 2);
 
         for (int i = 0; i < num_segments; i++)
         {
-            int *row_ids_gpu = nullptr, *row_ids_host = nullptr;
+            std::optional<AsyncRowIds> row_ids;
             uint64_t segment_size = (i == num_segments - 1) ? (nrows - i * SEGMENT_SIZE) : SEGMENT_SIZE;
-            sycl::event e_row_ids_host;
+            sycl::event e_last_cpu_sync;
 
             if (flags_modified_devices[device_index][i])
             {
-                auto row_id_res = build_row_ids(i, segment_size, device_allocator, device_index);
-                row_ids_gpu = std::get<0>(row_id_res);
-                n_rows_new[i] = std::get<1>(row_id_res);
-                row_ids_host = device_allocator.alloc<int>(n_rows_new[i], false);
-                e_row_ids_host = device_queues[device_index].memcpy(
-                    row_ids_host,
-                    row_ids_gpu,
-                    n_rows_new[i] * sizeof(int)
+                row_ids = build_row_ids(
+                    i,
+                    segment_size,
+                    device_allocator,
+                    device_index,
+                    dependencies.second[device_index]
                 );
             }
 
@@ -339,80 +578,73 @@ public:
                 Segment &seg = const_cast<Segment &>(col->get_segments()[i]);
                 if (seg.is_on_device(device_index) && seg.needs_copy_on(false, -1))
                 {
-                    if (row_ids_gpu == nullptr)
-                    {
-                        auto row_id_res = build_row_ids(i, segment_size, device_allocator, device_index);
-                        row_ids_gpu = std::get<0>(row_id_res);
-                        n_rows_new[i] = std::get<1>(row_id_res);
-                        row_ids_host = device_allocator.alloc<int>(n_rows_new[i], false);
-                        e_row_ids_host = device_queues[device_index].memcpy(
-                            row_ids_host,
-                            row_ids_gpu,
-                            n_rows_new[i] * sizeof(int)
-                        );
-                    }
+                    if (!row_ids.has_value())
+                        row_ids = build_row_ids(i, segment_size, device_allocator, device_index, dependencies.second[device_index]);
 
-                    seg.compress_sync(
-                        row_ids_gpu,
-                        row_ids_host,
-                        e_row_ids_host,
-                        n_rows_new[i],
-                        device_allocator,
-                        device_index
-                    ).wait(); // TODO: need to find why sometimes segfault if not wait here
+                    cpu_sync_events.push_back(
+                        seg.compress_sync(
+                            row_ids->row_ids_device,
+                            row_ids->row_ids_host,
+                            row_ids->selected_count_device,
+                            row_ids->selected_count_host,
+                            row_ids->selected_count_copy_event,
+                            row_ids->row_ids_copy_event,
+                            segment_size,
+                            device_allocator,
+                            device_index,
+                            copy_device_queues[device_index]
+                        )
+                    );
                 }
             }
 
             if (flags_modified_devices[device_index][i])
             {
                 bool *flags = flags_host + i * SEGMENT_SIZE;
-                cpu_queue.submit(
+                int *row_ids_host = row_ids->row_ids_host;
+                uint32_t *selected_count_host = row_ids->selected_count_host;
+                sycl::event selected_count_copy_event = row_ids->selected_count_copy_event;
+                sycl::event row_ids_copy_event = row_ids->row_ids_copy_event;
+                auto e_flags_reset = cpu_queue.fill(
+                    flags,
+                    false,
+                    segment_size,
+                    dependencies.first
+                );
+
+                e_last_cpu_sync = cpu_queue.submit(
                     [&](sycl::handler &cgh)
                     {
-                        cgh.depends_on(e_row_ids_host);
+                        cgh.depends_on(e_flags_reset);
+                        cgh.depends_on(selected_count_copy_event);
+                        cgh.depends_on(row_ids_copy_event);
                         cgh.parallel_for(
-                            n_rows_new[i] - 1,
+                            segment_size,
                             [=](sycl::id<1> idx)
                             {
-                                auto i = idx[0];
-                                int row_id = row_ids_host[i],
-                                    next_row_id = row_ids_host[i + 1];
-
-                                for (int r = row_id + 1; r < next_row_id; r++)
-                                    flags[r] = false;
+                                auto selected = static_cast<uint64_t>(idx[0]);
+                                if (selected < *selected_count_host)
+                                    flags[row_ids_host[selected]] = true;
                             }
                         );
                     }
                 );
 
-                e_row_ids_host.wait();
-
-                int first_row_id = row_ids_host[0];
-                if (first_row_id > 0)
-                {
-                    cpu_queue.memset(
-                        flags,
-                        0,
-                        first_row_id * sizeof(bool)
-                    );
-                }
-
-                int last_row_id = row_ids_host[n_rows_new[i] - 1];
-                if (last_row_id < segment_size - 1)
-                {
-                    cpu_queue.memset(
-                        flags + last_row_id + 1,
-                        0,
-                        (segment_size - 1 - last_row_id) * sizeof(bool)
-                    );
-                }
-
                 flags_modified_devices[device_index][i] = false;
             }
+
+            if (e_last_cpu_sync != sycl::event())
+                cpu_sync_events.push_back(e_last_cpu_sync);
         }
 
-        device_queues[device_index].wait_and_throw();
-        cpu_queue.wait_and_throw();
+        pending_kernels_dependencies_cpu = std::move(cpu_sync_events);
+        for (int d = 0; d < device_queues.size(); d++)
+        {
+            if (d == device_index)
+                pending_kernels_dependencies_devices[d].clear();
+            else
+                pending_kernels_dependencies_devices[d] = std::move(dependencies.second[d]);
+        }
     }
 
     std::tuple<bool *, int, int> build_keys_hash_table(int column, memory_manager &cpu_allocator, memory_manager &device_allocator, bool on_device, int device_index)
@@ -476,21 +708,56 @@ public:
         if (expr.op == "SEARCH")
         {
             const std::vector<Segment> &segments = current_columns[expr.operands[0].input]->get_segments();
+            bool host_needed = false;
+            std::vector<bool> devices_needed(device_queues.size(), false);
+
+            for (const Segment &segment : segments)
+            {
+                if (segment.is_on_device())
+                    devices_needed[segment.get_device_index()] = true;
+                else
+                    host_needed = true;
+            }
+
+            ensure_secondary_flag_buffers(
+                host_needed,
+                devices_needed,
+                cpu_allocator,
+                device_allocators
+            );
+
+            if (host_needed)
+                ensure_host_state_available(
+                    { current_columns[expr.operands[0].input] },
+                    cpu_allocator,
+                    device_allocators
+                );
 
             ops.reserve(segments.size());
 
             for (size_t segment_number = 0; segment_number < segments.size(); segment_number++)
             {
                 const Segment &segment = segments[segment_number];
-                std::vector<bool *> segments_flags_devices;
-                segments_flags_devices.reserve(device_queues.size());
+                std::vector<bool *> segments_flags_devices_input;
+                std::vector<bool *> segments_flags_devices_output;
+                segments_flags_devices_input.reserve(device_queues.size());
+                segments_flags_devices_output.reserve(device_queues.size());
                 std::transform(
                     flags_devices.begin(),
                     flags_devices.end(),
-                    std::back_inserter(segments_flags_devices),
+                    std::back_inserter(segments_flags_devices_input),
                     [segment_number](bool *flags_device)
                     {
                         return flags_device + segment_number * SEGMENT_SIZE;
+                    }
+                );
+                std::transform(
+                    flags_devices_secondary.begin(),
+                    flags_devices_secondary.end(),
+                    std::back_inserter(segments_flags_devices_output),
+                    [segment_number](bool *flags_device)
+                    {
+                        return flags_device == nullptr ? nullptr : flags_device + segment_number * SEGMENT_SIZE;
                     }
                 );
                 KernelBundle bundle = segment.search_operator(
@@ -499,7 +766,9 @@ public:
                     cpu_allocator,
                     device_allocators,
                     flags_host + segment_number * SEGMENT_SIZE,
-                    segments_flags_devices
+                    flags_host_secondary == nullptr ? nullptr : flags_host_secondary + segment_number * SEGMENT_SIZE,
+                    segments_flags_devices_input,
+                    segments_flags_devices_output,
                 );
 
                 if (bundle.is_on_device())
@@ -514,6 +783,7 @@ public:
             }
 
             pending_kernels.push_back(ops);
+            swap_flag_buffers(ops);
         }
         else if (is_filter_logical(expr.op))
         {
@@ -564,7 +834,40 @@ public:
             }
 
             const std::vector<Segment> &segments = cols[0]->get_segments();
+            bool host_needed = false;
+            std::vector<bool> devices_needed(device_queues.size(), false);
             ops.reserve(segments.size());
+
+            for (size_t segment_number = 0; segment_number < segments.size(); segment_number++)
+            {
+                const Segment &segment = segments[segment_number];
+                bool on_device =
+                    segment.is_on_device() &&
+                    (literal ||
+                        (cols[1]->get_segments()[segment_number].is_on_device()
+                            && cols[1]->get_segments()[segment_number].get_device_index() == segment.get_device_index()
+                            ));
+                int device_index = segment.get_device_index();
+                if (on_device)
+                    devices_needed[device_index] = true;
+                else
+                    host_needed = true;
+            }
+
+            ensure_secondary_flag_buffers(
+                host_needed,
+                devices_needed,
+                cpu_allocator,
+                device_allocators
+            );
+
+            if (host_needed)
+            {
+                std::vector<Column *> columns_to_sync = { cols[0] };
+                if (!literal)
+                    columns_to_sync.push_back(cols[1]);
+                ensure_host_state_available(columns_to_sync, cpu_allocator, device_allocators);
+            }
 
             for (size_t segment_number = 0; segment_number < segments.size(); segment_number++)
             {
@@ -587,7 +890,9 @@ public:
                                 expr.op,
                                 parent_op,
                                 literal_value,
+                                on_device,
                                 (on_device ? flags_devices[device_index] : flags_host) + segment_number * SEGMENT_SIZE,
+                                (on_device ? flags_devices_secondary[device_index] : flags_host_secondary) + segment_number * SEGMENT_SIZE,
                                 device_index
                             )
                             ) :
@@ -596,7 +901,9 @@ public:
                                 expr.op,
                                 parent_op,
                                 cols[1]->get_segments()[segment_number],
+                                on_device,
                                 (on_device ? flags_devices[device_index] : flags_host) + segment_number * SEGMENT_SIZE,
+                                (on_device ? flags_devices_secondary[device_index] : flags_host_secondary) + segment_number * SEGMENT_SIZE,
                                 device_index
                             )
                             )
@@ -612,6 +919,7 @@ public:
             }
 
             pending_kernels.push_back(ops);
+            swap_flag_buffers(ops);
         }
     }
 
@@ -638,13 +946,13 @@ public:
             case ExprOption::LITERAL:
             {
                 int literal_value = (int)expr.literal.value;
-                Column &new_col = materialized_columns.emplace_back(
+                Column &new_col = register_materialized_column(materialized_columns.emplace_back(
                     nrows,
                     cpu_queue,
                     device_queues,
                     cpu_allocator,
                     device_allocators[0]
-                );
+                ));
 
                 // TODO better way
 
@@ -666,13 +974,13 @@ public:
                 }
 
                 // TODO: pass the correct allocator in order to do host malloc, to speed up transfers.
-                Column &new_col = materialized_columns.emplace_back(
+                Column &new_col = register_materialized_column(materialized_columns.emplace_back(
                     nrows,
                     cpu_queue,
                     device_queues,
                     cpu_allocator,
                     device_allocators[0]
-                );
+                ));
 
                 std::vector<KernelBundle> ops;
 
@@ -690,6 +998,27 @@ public:
                         std::cerr << "Project operation: Mismatched segment sizes between columns" << std::endl;
                         return;
                     }
+
+                    bool host_needed = false;
+                    for (size_t segment_number = 0; segment_number < segments_a.size(); segment_number++)
+                    {
+                        const Segment &segment_a = segments_a[segment_number];
+                        const Segment &segment_b = segments_b[segment_number];
+                        bool on_device = segment_a.is_on_device() && segment_b.is_on_device()
+                            && segment_a.get_device_index() == segment_b.get_device_index();
+                        if (!on_device)
+                        {
+                            host_needed = true;
+                            break;
+                        }
+                    }
+
+                    if (host_needed)
+                        ensure_host_state_available(
+                            { current_columns[expr.operands[0].input], current_columns[expr.operands[1].input] },
+                            cpu_allocator,
+                            device_allocators
+                        );
 
                     for (size_t segment_number = 0; segment_number < segments_a.size(); segment_number++)
                     {
@@ -725,6 +1054,23 @@ public:
                 {
                     const std::vector<Segment> &segments = current_columns[expr.operands[1].input]->get_segments();
 
+                    bool host_needed = false;
+                    for (const Segment &segment : segments)
+                    {
+                        if (!segment.is_on_device())
+                        {
+                            host_needed = true;
+                            break;
+                        }
+                    }
+
+                    if (host_needed)
+                        ensure_host_state_available(
+                            { current_columns[expr.operands[1].input] },
+                            cpu_allocator,
+                            device_allocators
+                        );
+
                     for (size_t segment_number = 0; segment_number < segments.size(); segment_number++)
                     {
                         const Segment &segment = segments[segment_number];
@@ -756,6 +1102,23 @@ public:
                     expr.operands[1].exprType == ExprOption::LITERAL)
                 {
                     const std::vector<Segment> &segments = current_columns[expr.operands[0].input]->get_segments();
+
+                    bool host_needed = false;
+                    for (const Segment &segment : segments)
+                    {
+                        if (!segment.is_on_device())
+                        {
+                            host_needed = true;
+                            break;
+                        }
+                    }
+
+                    if (host_needed)
+                        ensure_host_state_available(
+                            { current_columns[expr.operands[0].input] },
+                            cpu_allocator,
+                            device_allocators
+                        );
 
                     for (size_t segment_number = 0; segment_number < segments.size(); segment_number++)
                     {
@@ -914,6 +1277,7 @@ public:
             {
                 pending_kernels_dependencies_devices[d] = dependencies.second[d];
                 bool *new_flags = device_allocators[d].alloc<bool>(1, true);
+                flags_devices_secondary[d] = nullptr;
                 pending_kernels_dependencies_devices[d].push_back(
                     device_queues[d].fill<bool>(new_flags, true, 1)
                 );
@@ -921,14 +1285,22 @@ public:
                 flags_modified_devices[d] = { false };
             }
 
-            bool *new_cpu_flags = cpu_allocator.alloc<bool>(1, true);
-            new_cpu_flags[0] = true;
-            flags_host = new_cpu_flags;
+            if (on_device)
+                flags_host = nullptr;
+            else
+            {
+                bool *new_cpu_flags = cpu_allocator.alloc<bool>(1, false);
+                new_cpu_flags[0] = true;
+                flags_host = new_cpu_flags;
+            }
+            flags_host_secondary = nullptr;
             flags_modified_host = { false };
+            if (on_device)
+                flags_modified_devices[device_index] = { true };
 
             nrows = 1;
 
-            Column &result_column = materialized_columns.emplace_back(
+            Column &result_column = register_materialized_column(materialized_columns.emplace_back(
                 final_result,
                 on_device,
                 device_index,
@@ -937,7 +1309,7 @@ public:
                 cpu_allocator,
                 device_allocators,
                 nrows
-            );
+            ));
 
             current_columns.clear();
             current_columns.push_back(&result_column);
@@ -1089,9 +1461,15 @@ public:
             // std::cout << "Executing aggregate kernels" << std::endl;
             auto dependencies = execute_pending_kernels();
 
-            bool *new_cpu_flags = on_device ? device_allocators[device_index].alloc<bool>(prod_ranges, false) :
-                cpu_allocator.alloc<bool>(prod_ranges, true);
-            flags_host = new_cpu_flags;
+            bool *new_cpu_flags = nullptr;
+            if (on_device)
+                flags_host = nullptr;
+            else
+            {
+                new_cpu_flags = cpu_allocator.alloc<bool>(prod_ranges, false);
+                flags_host = new_cpu_flags;
+            }
+            flags_host_secondary = nullptr;
 
             nrows = prod_ranges;
 
@@ -1103,8 +1481,8 @@ public:
                 auto e1 = device_queues[device_index].submit(
                     [&](sycl::handler &cgh)
                     {
-                        if (!dependencies.second[0].empty())
-                            cgh.depends_on(dependencies.second[0]);
+                        if (!dependencies.second[device_index].empty())
+                            cgh.depends_on(dependencies.second[device_index]);
                         cgh.parallel_for(
                             prod_ranges,
                             [=](sycl::id<1> idx)
@@ -1116,14 +1494,9 @@ public:
                 );
 
                 flags_devices[device_index] = new_gpu_flags;
-                pending_kernels_dependencies_devices[device_index].push_back(
-                    device_queues[device_index].memcpy(
-                        new_cpu_flags,
-                        new_gpu_flags,
-                        sizeof(bool) * prod_ranges,
-                        e1
-                    )
-                );
+                for (int d = 0; d < device_queues.size(); d++)
+                    flags_devices_secondary[d] = nullptr;
+                pending_kernels_dependencies_devices[device_index].push_back(e1);
                 for (int d = 0; d < device_queues.size(); d++)
                 {
                     // if (d != device_index)
@@ -1143,12 +1516,14 @@ public:
                     std::fill(
                         flags_modified_devices[d].begin(),
                         flags_modified_devices[d].end(),
-                        false
+                        d == device_index
                     );
                 }
             }
             else
             {
+                for (int d = 0; d < device_queues.size(); d++)
+                    flags_devices_secondary[d] = nullptr;
                 pending_kernels_dependencies_cpu.push_back(
                     cpu_queue.submit(
                         [&](sycl::handler &cgh)
@@ -1173,7 +1548,7 @@ public:
 
             for (int i = 0; i < group.size(); i++)
             {
-                Column &new_col = materialized_columns.emplace_back(
+                Column &new_col = register_materialized_column(materialized_columns.emplace_back(
                     results[i],
                     on_device,
                     device_index,
@@ -1182,11 +1557,11 @@ public:
                     cpu_allocator,
                     device_allocators,
                     prod_ranges
-                );
+                ));
                 current_columns.push_back(&new_col);
             }
 
-            Column &agg_col = materialized_columns.emplace_back(
+            Column &agg_col = register_materialized_column(materialized_columns.emplace_back(
                 aggregate_result,
                 on_device,
                 device_index,
@@ -1195,7 +1570,7 @@ public:
                 cpu_allocator,
                 device_allocators,
                 prod_ranges
-            );
+            ));
             current_columns.push_back(&agg_col);
 
             flags_modified_host.resize(segment_num, false);
@@ -1253,6 +1628,11 @@ public:
                 }
                 else if (!seg.is_on_device() && ht_cpu == nullptr)
                 {
+                    right_table.ensure_host_state_available(
+                        { right_table.current_columns[right_column] },
+                        cpu_allocator,
+                        device_allocators
+                    );
                     auto ht_data = right_table.build_keys_hash_table(
                         right_column,
                         cpu_allocator,
@@ -1265,6 +1645,27 @@ public:
                     build_max_value = std::get<2>(ht_data);
                 }
             }
+
+            bool host_needed = false;
+            std::vector<bool> devices_needed(device_queues.size(), false);
+            for (const Segment &seg : current_columns[left_column]->get_segments())
+            {
+                int device_index = seg.get_device_index();
+                if (seg.is_on_device() && ht_devices[device_index] != nullptr)
+                    devices_needed[device_index] = true;
+                else
+                    host_needed = true;
+            }
+
+            ensure_secondary_flag_buffers(
+                host_needed,
+                devices_needed,
+                cpu_allocator,
+                device_allocators
+            );
+
+            if (host_needed)
+                ensure_host_flags_available(cpu_allocator, device_allocators);
 
             auto ht_dependencies = right_table.execute_pending_kernels();
 
@@ -1282,18 +1683,20 @@ public:
                 );
             }
 
-            pending_kernels.push_back(
-                current_columns[left_column]->semi_join(
-                    flags_host,
-                    flags_devices,
-                    build_min_value,
-                    build_max_value,
-                    ht_cpu,
-                    ht_devices,
-                    flags_modified_host,
-                    flags_modified_devices
-                )
+            auto join_ops = current_columns[left_column]->semi_join(
+                flags_host,
+                flags_host_secondary,
+                flags_devices,
+                flags_devices_secondary,
+                build_min_value,
+                build_max_value,
+                ht_cpu,
+                ht_devices,
+                flags_modified_host,
+                flags_modified_devices
             );
+            pending_kernels.push_back(join_ops);
+            swap_flag_buffers(join_ops);
 
             for (int i = 0; i < right_table.current_columns.size(); i++)
                 current_columns.push_back(nullptr);
@@ -1326,14 +1729,14 @@ public:
                 << std::endl;
             #endif
 
-            Column &new_column = materialized_columns.emplace_back(
+            Column &new_column = register_materialized_column(materialized_columns.emplace_back(
                 nrows,
                 cpu_queue,
                 device_queues,
                 cpu_allocator,
                 device_allocators[0],
                 true
-            );
+            ));
 
             auto min_max_gb = right_table.group_by_column->get_min_max();
             uint64_t group_by_col_index = current_columns.size() + right_table.group_by_column_index;
@@ -1367,6 +1770,11 @@ public:
             // Assumed all probe segments on a device have the full build columns on device too
             if (probe_col_locations.first)
             {
+                right_table.ensure_host_state_available(
+                    { right_table.current_columns[right_column], right_table.group_by_column },
+                    cpu_allocator,
+                    device_allocators
+                );
                 auto ht_data = right_table.build_key_vals_hash_table(
                     right_column,
                     false,
@@ -1378,6 +1786,39 @@ public:
                 build_min_value = std::get<1>(ht_data);
                 build_max_value = std::get<2>(ht_data);
             }
+
+            bool host_needed = false;
+            std::vector<bool> devices_needed(device_queues.size(), false);
+            for (const Segment &seg : current_columns[left_column]->get_segments())
+            {
+                bool built = false;
+                if (seg.is_on_device())
+                {
+                    const std::vector<bool> &on_device_vec = seg.get_on_device_vec();
+                    for (int d = 0; d < device_queues.size(); d++)
+                    {
+                        if (on_device_vec[d] && ht_devices[d] != nullptr)
+                        {
+                            devices_needed[d] = true;
+                            built = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!built)
+                    host_needed = true;
+            }
+
+            ensure_secondary_flag_buffers(
+                host_needed,
+                devices_needed,
+                cpu_allocator,
+                device_allocators
+            );
+
+            if (host_needed)
+                ensure_host_flags_available(cpu_allocator, device_allocators);
 
             auto ht_dependencies = right_table.execute_pending_kernels();
 
@@ -1397,7 +1838,9 @@ public:
 
             auto join_ops = current_columns[left_column]->full_join_operation(
                 flags_host,
+                flags_host_secondary,
                 flags_devices,
+                flags_devices_secondary,
                 build_min_value,
                 build_max_value,
                 min_max_gb.first,
@@ -1414,6 +1857,7 @@ public:
             );
 
             pending_kernels.push_back(join_ops);
+            swap_flag_buffers(join_ops);
         }
     }
 };

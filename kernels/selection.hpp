@@ -107,15 +107,21 @@ class LogicalKernel : public KernelDefinition
 {
 private:
     logical_op logic;
-    bool *flags1, *flags2;
+    const bool *input_flags;
+    const bool *local_flags;
+    bool *output_flags;
 public:
+    LogicalKernel(logical_op log, const bool *input, const bool *local, bool *output, int len)
+        : KernelDefinition(len), logic(log), input_flags(input), local_flags(local), output_flags(output)
+    {}
+
     LogicalKernel(logical_op log, bool *f1, bool *f2, int len)
-        : KernelDefinition(len), logic(log), flags1(f1), flags2(f2)
+        : LogicalKernel(log, f1, f2, f1, len)
     {}
 
     void operator()(sycl::id<1> idx) const
     {
-        flags1[idx] = logical(logic, flags1[idx], flags2[idx]);
+        output_flags[idx] = logical(logic, input_flags[idx], local_flags[idx]);
     }
 };
 
@@ -124,20 +130,29 @@ class SelectionKernelColumns : public KernelDefinition
 private:
     comp_op comparison;
     logical_op logic;
-    bool *flags;
+    const bool *input_flags;
+    bool *output_flags;
     const int *operand1, *operand2;
 public:
+    SelectionKernelColumns(comp_op comp, logical_op log, const bool *input, bool *output, const int *op1, const int *op2, int len)
+        : KernelDefinition(len), comparison(comp), logic(log), input_flags(input), output_flags(output), operand1(op1), operand2(op2)
+    {}
+
     SelectionKernelColumns(comp_op comp, logical_op log, bool *f, const int *op1, const int *op2, int len)
-        : KernelDefinition(len), comparison(comp), logic(log), flags(f), operand1(op1), operand2(op2)
+        : SelectionKernelColumns(comp, log, f, f, op1, op2, len)
+    {}
+
+    SelectionKernelColumns(const bool *input, bool *output, const int *op1, const std::string &op, const int *op2, const std::string &parent_op, int len)
+        : SelectionKernelColumns(get_comp_op(op), get_logical_op(parent_op), input, output, op1, op2, len)
     {}
 
     SelectionKernelColumns(bool *f, const int *op1, const std::string &op, const int *op2, const std::string &parent_op, int len)
-        : SelectionKernelColumns(get_comp_op(op), get_logical_op(parent_op), f, op1, op2, len)
+        : SelectionKernelColumns(get_comp_op(op), get_logical_op(parent_op), f, f, op1, op2, len)
     {}
 
     void operator()(sycl::id<1> idx) const
     {
-        flags[idx] = logical(logic, flags[idx], compare(comparison, operand1[idx], operand2[idx]));
+        output_flags[idx] = logical(logic, input_flags[idx], compare(comparison, operand1[idx], operand2[idx]));
     }
 };
 
@@ -146,21 +161,30 @@ class SelectionKernelLiteral : public KernelDefinition
 private:
     comp_op comparison;
     logical_op logic;
-    bool *flags;
+    const bool *input_flags;
+    bool *output_flags;
     const int *operand1;
     int value;
 public:
+    SelectionKernelLiteral(comp_op comp, logical_op log, const bool *input, bool *output, const int *op1, int val, int len)
+        : KernelDefinition(len), comparison(comp), logic(log), input_flags(input), output_flags(output), operand1(op1), value(val)
+    {}
+
     SelectionKernelLiteral(comp_op comp, logical_op log, bool *f, const int *op1, int val, int len)
-        : KernelDefinition(len), comparison(comp), logic(log), flags(f), operand1(op1), value(val)
+        : SelectionKernelLiteral(comp, log, f, f, op1, val, len)
+    {}
+
+    SelectionKernelLiteral(const bool *input, bool *output, const int *op1, const std::string &op, int val, const std::string &parent_op, int len)
+        : SelectionKernelLiteral(get_comp_op(op), get_logical_op(parent_op), input, output, op1, val, len)
     {}
 
     SelectionKernelLiteral(bool *f, const int *op1, const std::string &op, int val, const std::string &parent_op, int len)
-        : SelectionKernelLiteral(get_comp_op(op), get_logical_op(parent_op), f, op1, val, len)
+        : SelectionKernelLiteral(get_comp_op(op), get_logical_op(parent_op), f, f, op1, val, len)
     {}
 
     void operator()(sycl::id<1> idx) const
     {
-        flags[idx] = logical(logic, flags[idx], compare(comparison, operand1[idx], value));
+        output_flags[idx] = logical(logic, input_flags[idx], compare(comparison, operand1[idx], value));
     }
 };
 

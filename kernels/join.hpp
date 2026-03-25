@@ -130,10 +130,25 @@ class FilterJoinKernel : public KernelDefinition
 {
 private:
     const int *probe_col;
-    bool *probe_col_flags;
+    const bool *input_flags;
+    bool *output_flags;
     const bool *build_ht;
     int build_min_value, build_max_value, ht_len;
 public:
+    FilterJoinKernel(
+        const int *probe_column,
+        const bool *probe_input_flags,
+        bool *probe_output_flags,
+        const bool *build_hash_table,
+        int build_min,
+        int build_max,
+        int col_len)
+        : KernelDefinition(col_len), probe_col(probe_column), input_flags(probe_input_flags), output_flags(probe_output_flags), build_ht(build_hash_table),
+        build_min_value(build_min), build_max_value(build_max)
+    {
+        ht_len = build_max_value - build_min_value + 1;
+    }
+
     FilterJoinKernel(
         const int *probe_column,
         bool *probe_column_flags,
@@ -141,23 +156,20 @@ public:
         int build_min,
         int build_max,
         int col_len)
-        : KernelDefinition(col_len), probe_col(probe_column), probe_col_flags(probe_column_flags), build_ht(build_hash_table),
-        build_min_value(build_min), build_max_value(build_max)
-    {
-        ht_len = build_max_value - build_min_value + 1;
-    }
+        : FilterJoinKernel(probe_column, probe_column_flags, probe_column_flags, build_hash_table, build_min, build_max, col_len)
+    {}
 
     void operator()(sycl::id<1> idx) const
     {
         auto i = idx[0];
         if (
-            probe_col_flags[i] &&
+            input_flags[i] &&
             probe_col[i] >= build_min_value &&
             probe_col[i] <= build_max_value
             )
-            probe_col_flags[i] = build_ht[HASH(probe_col[i], ht_len, build_min_value)];
+            output_flags[i] = build_ht[HASH(probe_col[i], ht_len, build_min_value)];
         else
-            probe_col_flags[i] = false;
+            output_flags[i] = false;
     }
 };
 
@@ -247,10 +259,26 @@ class FullJoinKernel : public KernelDefinition
 private:
     const int *probe_col;
     int *probe_val_out;
-    bool *probe_flags;
+    const bool *input_flags;
+    bool *output_flags;
     const int *ht;
     int ht_len, ht_min_value, ht_max_value;
 public:
+    FullJoinKernel(
+        const int *probe_column,
+        int *probe_value_output,
+        const bool *probe_input_flags,
+        bool *probe_output_flags,
+        const int *hash_table,
+        int ht_min,
+        int ht_max,
+        int col_len)
+        : KernelDefinition(col_len), probe_col(probe_column), probe_val_out(probe_value_output),
+        input_flags(probe_input_flags), output_flags(probe_output_flags), ht(hash_table), ht_min_value(ht_min), ht_max_value(ht_max)
+    {
+        ht_len = ht_max - ht_min + 1;
+    }
+
     FullJoinKernel(
         const int *probe_column,
         int *probe_value_output,
@@ -259,16 +287,13 @@ public:
         int ht_min,
         int ht_max,
         int col_len)
-        : KernelDefinition(col_len), probe_col(probe_column), probe_val_out(probe_value_output),
-        probe_flags(probe_column_flags), ht(hash_table), ht_min_value(ht_min), ht_max_value(ht_max)
-    {
-        ht_len = ht_max - ht_min + 1;
-    }
+        : FullJoinKernel(probe_column, probe_value_output, probe_column_flags, probe_column_flags, hash_table, ht_min, ht_max, col_len)
+    {}
 
     void operator()(sycl::id<1> idx) const
     {
         auto i = idx[0];
-        if (probe_flags[i])
+        if (input_flags[i])
         {
             int hash = HASH(probe_col[i], ht_len, ht_min_value) << 1;
             if (probe_col[i] >= ht_min_value &&
@@ -276,12 +301,15 @@ public:
                 ht[hash] == 1)
             {
                 probe_val_out[i] = ht[hash + 1]; // save the value to group by on
+                output_flags[i] = true;
             }
             else
             {
-                probe_flags[i] = false; // mark as not selected
+                output_flags[i] = false; // mark as not selected
             }
         }
+        else
+            output_flags[i] = false;
     }
 };
 

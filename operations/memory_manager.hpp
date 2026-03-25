@@ -113,9 +113,17 @@ sycl::event memory_region::reset()
 class memory_manager
 {
 private:
+    sycl::queue *queue;
     std::vector<memory_region> regions_device;
     std::vector<memory_region> regions_host;
     std::vector<memory_region> regions_zero_device;
+    uint64_t budget_device;
+    uint64_t budget_host;
+    uint64_t budget_zero_device;
+    uint64_t reserved_device;
+    uint64_t reserved_host;
+    uint64_t reserved_zero_device;
+    uint64_t max_region_size;
 public:
     memory_manager(sycl::queue &queue, uint64_t size, uint64_t max_region_size);
 
@@ -129,46 +137,27 @@ public:
 };
 
 memory_manager::memory_manager(sycl::queue &queue, uint64_t size, uint64_t max_region_size)
+    : queue(&queue),
+      budget_device(size),
+      budget_host(size << 1),
+      budget_zero_device(size >> 6),
+      reserved_device(0),
+      reserved_host(0),
+      reserved_zero_device(0),
+      max_region_size(max_region_size)
 {
-    uint64_t size_left = size >> 6,
-        num_regions = (size_left + max_region_size - 1) / max_region_size;
-    regions_zero_device.reserve(num_regions);
-    while (size_left > 0)
-    {
-        uint64_t region_size = (size_left > max_region_size) ? max_region_size : size_left;
-
-        regions_zero_device.emplace_back(queue, region_size, true, true);
-
-        size_left -= region_size;
-    }
-
-    size_left = size;
-    num_regions = (size_left + max_region_size - 1) / max_region_size;
-    regions_device.reserve(num_regions);
-    while (size_left > 0)
-    {
-        uint64_t region_size = (size_left > max_region_size) ? max_region_size : size_left;
-        regions_device.emplace_back(queue, region_size, true, false);
-        size_left -= region_size;
-    }
-
-    size_left = size << 1;
-    num_regions = (size_left + max_region_size - 1) / max_region_size;
-    regions_host.reserve(num_regions);
-    while (size_left > 0)
-    {
-        uint64_t region_size = (size_left > max_region_size) ? max_region_size : size_left;
-        regions_host.emplace_back(queue, region_size, false, false);
-        size_left -= region_size;
-    }
-
-    queue.wait();
+    uint64_t reserve_regions = (size + max_region_size - 1) / max_region_size;
+    regions_device.reserve(reserve_regions);
+    regions_host.reserve(((size << 1) + max_region_size - 1) / max_region_size);
+    regions_zero_device.reserve(((size >> 6) + max_region_size - 1) / max_region_size);
 }
 
 template <typename T>
 T *memory_manager::alloc(uint64_t count, bool on_device)
 {
     std::vector<memory_region> &regions = on_device ? regions_device : regions_host;
+    uint64_t &reserved = on_device ? reserved_device : reserved_host;
+    uint64_t budget = on_device ? budget_device : budget_host;
 
     for (auto &region : regions)
     {
@@ -178,13 +167,36 @@ T *memory_manager::alloc(uint64_t count, bool on_device)
         }
     }
 
-    std::cerr << "Memory manager out of memory regions on " << (on_device ? "device" : "host") << std::endl;
+    uint64_t bytes = count * sizeof(T);
+    bytes = (bytes + 7) & (~7);
+    uint64_t remaining = budget - reserved;
+
+    if (remaining >= bytes)
+    {
+        uint64_t region_size = std::min(
+            remaining,
+            std::max(bytes, max_region_size)
+        );
+        regions.emplace_back(*queue, region_size, on_device, false);
+        reserved += region_size;
+        return regions.back().alloc<T>(count);
+    }
+
+    std::cerr << "Memory manager out of memory regions on "
+        << (on_device ? "device" : "host")
+        << ": requested " << (count * sizeof(T))
+        << " bytes, " << remaining
+        << " bytes remain in the allocator budget"
+        << std::endl;
     throw std::bad_alloc();
 }
 
 template <typename T>
 T *memory_manager::alloc_zero(uint64_t count)
 {
+    uint64_t bytes = count * sizeof(T);
+    bytes = (bytes + 7) & (~7);
+
     for (auto &region : regions_zero_device)
     {
         if (region.can_alloc<T>(count))
@@ -193,7 +205,23 @@ T *memory_manager::alloc_zero(uint64_t count)
         }
     }
 
-    std::cerr << "Memory manager out of zeroed memory regions on device" << std::endl;
+    uint64_t remaining = budget_zero_device - reserved_zero_device;
+    if (remaining >= bytes)
+    {
+        uint64_t region_size = std::min(
+            remaining,
+            std::max(bytes, max_region_size)
+        );
+        regions_zero_device.emplace_back(*queue, region_size, true, true);
+        reserved_zero_device += region_size;
+        return regions_zero_device.back().alloc<T>(count);
+    }
+
+    std::cerr << "Memory manager out of zeroed memory regions on device: requested "
+        << (count * sizeof(T))
+        << " bytes, " << remaining
+        << " bytes remain in the allocator budget"
+        << std::endl;
     throw std::bad_alloc();
 }
 
