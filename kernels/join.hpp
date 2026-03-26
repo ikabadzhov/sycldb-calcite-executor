@@ -32,7 +32,7 @@ public:
     }
 };
 
-sycl::event build_keys_ht(
+inline sycl::event build_keys_ht(
     const int col[],
     const bool flags[],
     int col_len,
@@ -92,7 +92,7 @@ public:
     }
 };
 
-sycl::event build_key_vals_ht(
+inline sycl::event build_key_vals_ht(
     int col[],
     int agg_col[],
     const bool flags[],
@@ -173,7 +173,7 @@ public:
     }
 };
 
-sycl::event filter_join(
+inline sycl::event filter_join(
     const int *probe_col,
     bool *probe_col_flags,
     int probe_col_len,
@@ -208,7 +208,7 @@ sycl::event filter_join(
     );
 }
 
-sycl::event filter_join(
+inline sycl::event filter_join(
     int build_col[],
     bool build_flags[],
     int build_col_len,
@@ -313,7 +313,7 @@ public:
     }
 };
 
-sycl::event full_join(
+inline sycl::event full_join(
     const int *probe_col,
     int *probe_val_out,
     bool *probe_flags,
@@ -356,7 +356,7 @@ sycl::event full_join(
     );
 }
 
-sycl::event full_join(
+inline sycl::event full_join(
     TableData<int> &probe_table,
     TableData<int> &build_table,
     int probe_col_index,

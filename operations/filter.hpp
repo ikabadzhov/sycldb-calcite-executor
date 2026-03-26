@@ -11,7 +11,7 @@
 #include "../kernels/selection.hpp"
 #include "memory_manager.hpp"
 
-std::vector<sycl::event> parse_filter(
+inline std::vector<sycl::event> parse_filter(
     const ExprType &expr,
     const TableData<int> table_data,
     std::string parent_op,

@@ -11,7 +11,7 @@
 
 #include "../gen-cpp/calciteserver_types.h"
 
-std::vector<sycl::event> parse_aggregate(
+inline std::vector<sycl::event> parse_aggregate(
     TableData<int> &table_data,
     const AggType &agg,
     const std::vector<long> &group,

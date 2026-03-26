@@ -4,7 +4,7 @@
 
 #include "types.hpp"
 
-void sort_table(TableData<int> &table_data, const int *sort_columns, const bool *ascending, int num_sort_columns, sycl::queue &queue)
+inline void sort_table(TableData<int> &table_data, const int *sort_columns, const bool *ascending, int num_sort_columns, sycl::queue &queue)
 {
     // Create an array of indices to represent the original row order
     int *indices = sycl::malloc_host<int>(table_data.col_len, queue);

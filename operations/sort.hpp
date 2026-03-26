@@ -7,7 +7,7 @@
 
 #include "../gen-cpp/calciteserver_types.h"
 
-void parse_sort(const RelNode &rel, TableData<int> &table_data, sycl::queue &queue)
+inline void parse_sort(const RelNode &rel, TableData<int> &table_data, sycl::queue &queue)
 {
     if (rel.collation.size() == 0)
         return;

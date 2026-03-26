@@ -34,7 +34,7 @@ inline T element_operation(T a, T b, BinaryOp op)
     }
 }
 
-BinaryOp get_op_from_string(const std::string &op)
+inline BinaryOp get_op_from_string(const std::string &op)
 {
     if (op == "*")
         return BinaryOp::Multiply;
@@ -72,7 +72,7 @@ public:
     }
 };
 
-sycl::event perform_operation(
+inline sycl::event perform_operation(
     int result[],
     const int a[],
     const int b[],
@@ -126,7 +126,7 @@ public:
     }
 };
 
-sycl::event perform_operation(
+inline sycl::event perform_operation(
     int result[],
     int a,
     const int b[],
@@ -180,7 +180,7 @@ public:
     }
 };
 
-sycl::event perform_operation(
+inline sycl::event perform_operation(
     int result[],
     const int a[],
     int b,
@@ -231,7 +231,7 @@ public:
     }
 };
 
-sycl::event aggregate_operation(
+inline sycl::event aggregate_operation(
     const int a[],
     const bool flags[],
     int size,
@@ -354,7 +354,7 @@ public:
     }
 };
 
-sycl::event group_by_aggregate(
+inline sycl::event group_by_aggregate(
     const int **contents,
     const int *agg_column,
     const int *max,
@@ -419,7 +419,7 @@ sycl::event group_by_aggregate(
     );
 }
 
-std::tuple<
+inline std::tuple<
     int **,
     unsigned long long,
     bool *,

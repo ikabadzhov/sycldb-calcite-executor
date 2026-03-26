@@ -20,7 +20,7 @@ enum logical_op
     OR
 };
 
-comp_op get_comp_op(std::string op)
+inline comp_op get_comp_op(std::string op)
 {
     if (op == "==")
         return EQ;
@@ -38,7 +38,7 @@ comp_op get_comp_op(std::string op)
         return EQ;
 }
 
-logical_op get_logical_op(std::string op)
+inline logical_op get_logical_op(std::string op)
 {
     if (op == "AND")
         return AND;
@@ -50,7 +50,7 @@ logical_op get_logical_op(std::string op)
 
 // logicals are AND, OR etc. while comparisons are ==, <= etc.
 // So checking alpha characters is enough to determine if the operation is logical.
-bool is_filter_logical(const std::string &op)
+inline bool is_filter_logical(const std::string &op)
 {
     for (int i = 0; i < op.length(); i++)
         if (!isalpha(op[i]))
@@ -188,7 +188,7 @@ public:
     }
 };
 
-sycl::event selection(
+inline sycl::event selection(
     bool flags[],
     const int arr[],
     std::string op,
@@ -216,7 +216,7 @@ sycl::event selection(
     // std::cout << "Running selection with comparison: " << op << " and parent op " << parent_op << std::endl;
 }
 
-sycl::event selection(
+inline sycl::event selection(
     bool flags[],
     const int operand1[],
     std::string op,

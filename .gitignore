@@ -32,7 +32,12 @@
 *.app
 
 .vscode/
+.idea/
+.codex-skill-staging/
 client
 
 # Temporary files
 *.res
+*.swp
+benchmark_results*.csv
+; sleep 1; done

@@ -11,7 +11,7 @@
 
 #include "../gen-cpp/calciteserver_types.h"
 
-std::vector<sycl::event> parse_project(
+inline std::vector<sycl::event> parse_project(
     const std::vector<ExprType> &exprs,
     TableData<int> &table_data,
     std::vector<void *> &resources,

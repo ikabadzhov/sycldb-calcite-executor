@@ -1,0 +1,14 @@
+# Supported transformed SSB benchmark suite
+queries/transformed/q11.sql
+queries/transformed/q12.sql
+queries/transformed/q13.sql
+queries/transformed/q21.sql
+queries/transformed/q22.sql
+queries/transformed/q23.sql
+queries/transformed/q31.sql
+queries/transformed/q32.sql
+queries/transformed/q33.sql
+queries/transformed/q34.sql
+queries/transformed/q41.sql
+queries/transformed/q42.sql
+queries/transformed/q43.sql

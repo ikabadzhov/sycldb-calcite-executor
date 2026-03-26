@@ -10,7 +10,7 @@
 
 #include "../common.hpp"
 
-TableData<int> loadTable(
+inline TableData<int> loadTable(
     std::string table_name,
     int col_number,
     const std::set<int> &columns,
@@ -113,7 +113,7 @@ TableData<int> loadTable(
     return res;
 }
 
-std::map<std::string, TableData<int>> preload_all_tables(sycl::queue &queue, memory_manager &gpu_allocator)
+inline std::map<std::string, TableData<int>> preload_all_tables(sycl::queue &queue, memory_manager &gpu_allocator)
 {
     std::map<std::string, TableData<int>> tables;
 
@@ -122,13 +122,13 @@ std::map<std::string, TableData<int>> preload_all_tables(sycl::queue &queue, mem
         const std::string &table_name = table_entry.first;
         const std::set<int> &columns = table_entry.second;
 
-        tables[table_name] = loadTable(table_name, table_column_numbers[table_name], columns, queue, gpu_allocator, false);
+        tables[table_name] = loadTable(table_name, table_column_numbers.at(table_name), columns, queue, gpu_allocator, false);
     }
 
     return tables;
 }
 
-TableData<int> copy_table(
+inline TableData<int> copy_table(
     const TableData<int> &table_data,
     const std::set<int> &columns,
     memory_manager &gpu_allocator,

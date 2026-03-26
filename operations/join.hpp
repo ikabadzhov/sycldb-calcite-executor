@@ -12,7 +12,7 @@
 
 #include "../gen-cpp/calciteserver_types.h"
 
-std::vector<sycl::event> parse_join(
+inline std::vector<sycl::event> parse_join(
     const RelNode &rel,
     TableData<int> &left_table,
     TableData<int> &right_table,

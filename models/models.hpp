@@ -1639,10 +1639,10 @@ public:
     Table(const std::string table_name, sycl::queue &cpu_queue, std::vector<sycl::queue> &device_queues)
         : table_name(table_name)
     {
-        int col_number = table_column_numbers[table_name], *content;
+        int col_number = table_column_numbers.at(table_name), *content;
         columns.reserve(col_number);
 
-        const std::set<int> &columns_needed = table_column_indices[table_name];
+        const std::set<int> &columns_needed = table_column_indices.at(table_name);
 
         bool nrows_set = false;
         for (int i = 0; i < col_number; i++)

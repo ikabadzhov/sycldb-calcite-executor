@@ -25,7 +25,7 @@ struct AsyncCountResult
     }
 };
 
-AsyncCountResult count_true_flags_async(
+inline AsyncCountResult count_true_flags_async(
     const bool *flags,
     int len,
     sycl::queue &queue,
@@ -62,7 +62,7 @@ AsyncCountResult count_true_flags_async(
     return { count, event };
 }
 
-uint64_t count_true_flags(
+inline uint64_t count_true_flags(
     const bool *flags,
     int len,
     sycl::queue &queue,
@@ -76,7 +76,7 @@ uint64_t count_true_flags(
     ).get();
 }
 
-sycl::event count_true_flags(
+inline sycl::event count_true_flags(
     const bool *flags,
     int len,
     sycl::queue &queue,
