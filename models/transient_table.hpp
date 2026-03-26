@@ -789,7 +789,7 @@ public:
                     flags_host + segment_number * SEGMENT_SIZE,
                     flags_host_secondary == nullptr ? nullptr : flags_host_secondary + segment_number * SEGMENT_SIZE,
                     segments_flags_devices_input,
-                    segments_flags_devices_output,
+                    segments_flags_devices_output
                 );
 
                 if (bundle.is_on_device())

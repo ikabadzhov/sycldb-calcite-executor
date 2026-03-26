@@ -11,17 +11,51 @@ namespace runtime_setup
 namespace
 {
 
+std::string backend_to_string(sycl::backend b)
+{
+    switch (b)
+    {
+    case sycl::backend::ocl: return "OpenCL";
+    case sycl::backend::omp: return "OpenMP";
+#ifdef SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO
+    case sycl::backend::ext_oneapi_level_zero: return "Level Zero";
+#endif
+#ifdef SYCL_EXT_ONEAPI_BACKEND_CUDA
+    case sycl::backend::ext_oneapi_cuda: return "CUDA (oneAPI)";
+#endif
+#ifdef SYCL_EXT_ONEAPI_BACKEND_HIP
+    case sycl::backend::ext_oneapi_hip: return "HIP (oneAPI)";
+#endif
+    case sycl::backend::cuda: return "CUDA";
+    case sycl::backend::hip: return "HIP";
+    case sycl::backend::level_zero: return "Level Zero";
+    default: return "Unknown";
+    }
+}
+
 int device_preload_priority(const sycl::device &device)
 {
     const auto backend = device.get_backend();
-    if (backend == sycl::backend::ext_oneapi_cuda)
-        return 400;
-    if (backend == sycl::backend::ext_oneapi_hip)
-        return 300;
-    if (backend == sycl::backend::opencl && device.is_cpu())
+#ifdef SYCL_EXT_ONEAPI_BACKEND_CUDA
+    if (backend == sycl::backend::ext_oneapi_cuda) return 400;
+#endif
+    if (backend == sycl::backend::cuda) return 400;
+
+#ifdef SYCL_EXT_ONEAPI_BACKEND_HIP
+    if (backend == sycl::backend::ext_oneapi_hip) return 300;
+#endif
+    if (backend == sycl::backend::hip) return 300;
+
+    if (backend == sycl::backend::ocl && device.is_cpu())
         return 200;
+
+#ifdef SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO
     if (backend == sycl::backend::ext_oneapi_level_zero)
         return 100;
+#endif
+    if (backend == sycl::backend::level_zero)
+        return 100;
+
     return 0;
 }
 
@@ -118,7 +152,7 @@ RuntimeEnvironment build_runtime_environment()
             << "\nMemSize (MB): " << (memsize >> 20)
             << "\nMax Compute Units: " << max_compute_units
             << "\nPlatform: " << platform
-            << "\nBackend: " << device.get_backend()
+            << "\nBackend: " << backend_to_string(device.get_backend())
             << "\n---------------------------------" << std::endl;
 
         runtime.queues.device_queues.emplace_back(device);
@@ -213,7 +247,7 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
         const uint64_t mem_size =
             device.get_info<sycl::info::device::global_mem_size>();
         const bool is_opencl_cpu_device =
-            backend == sycl::backend::opencl && device.is_cpu();
+            backend == sycl::backend::ocl && device.is_cpu();
         const uint64_t max_allocator_size = is_opencl_cpu_device ?
             SIZE_TEMP_MEMORY_CPU :
             ((((uint64_t)10) << 30) + (((uint64_t)512) << 20));
@@ -261,7 +295,14 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
             );
         }
 
+#ifdef SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO
         if (backend == sycl::backend::ext_oneapi_level_zero)
+        {
+            allocator_size = std::min<uint64_t>(allocator_size, ((uint64_t)10) << 30);
+            allocator_region_size = std::min<uint64_t>(allocator_region_size, ((uint64_t)1) << 30);
+        }
+#endif
+        if (backend == sycl::backend::level_zero)
         {
             allocator_size = std::min<uint64_t>(allocator_size, ((uint64_t)10) << 30);
             allocator_region_size = std::min<uint64_t>(allocator_region_size, ((uint64_t)1) << 30);
