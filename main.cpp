@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <deque>
+#include <numeric>
 #include <sycl/sycl.hpp>
 
 #include <thrift/protocol/TBinaryProtocol.h>
@@ -42,6 +44,46 @@ class TestEvent;
 static void wait_for_dependencies_and_throw(
     const std::vector<sycl::event> &cpu_events,
     const std::vector<std::vector<sycl::event>> &device_events);
+
+static int device_preload_priority(const sycl::device &device)
+{
+    auto backend = device.get_backend();
+    if (backend == sycl::backend::ext_oneapi_cuda)
+        return 400;
+    if (backend == sycl::backend::ext_oneapi_hip)
+        return 300;
+    if (backend == sycl::backend::opencl && device.is_cpu())
+        return 200;
+    if (backend == sycl::backend::ext_oneapi_level_zero)
+        return 100;
+    return 0;
+}
+
+static std::vector<int> build_preferred_device_order(const std::vector<sycl::queue> &device_queues)
+{
+    std::vector<int> order(device_queues.size());
+    std::iota(order.begin(), order.end(), 0);
+
+    std::stable_sort(
+        order.begin(),
+        order.end(),
+        [&](int lhs, int rhs)
+        {
+            const sycl::device lhs_device = device_queues[lhs].get_device();
+            const sycl::device rhs_device = device_queues[rhs].get_device();
+
+            int lhs_priority = device_preload_priority(lhs_device);
+            int rhs_priority = device_preload_priority(rhs_device);
+            if (lhs_priority != rhs_priority)
+                return lhs_priority > rhs_priority;
+
+            return lhs_device.get_info<sycl::info::device::global_mem_size>() >
+                rhs_device.get_info<sycl::info::device::global_mem_size>();
+        }
+    );
+
+    return order;
+}
 
 void sycl_exception_handler(sycl::exception_list exceptions)
 {
@@ -652,6 +694,8 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
     ExecutionInfo exec_info = parse_execution_info(result);
     std::vector<int> output_table(result.rels.size(), -1);
     std::vector<TransientTable> transient_tables;
+    std::vector<int> preferred_device_order = build_preferred_device_order(device_queues);
+    int primary_device_index = preferred_device_order.empty() ? -1 : preferred_device_order.front();
 
     for (const RelNode &rel : result.rels)
     {
@@ -684,17 +728,25 @@ std::chrono::duration<double, std::milli> ddor_execute_result(
             return std::chrono::duration<double, std::milli>::zero();
         }
 
-        // On-demand: move only required columns of this table to device 0
+        // On-demand base-column staging:
+        // choose a preferred primary device instead of blindly using the
+        // first enumerated backend, which may be a memory-constrained device.
         if (exec_info.loaded_columns.find(rel.tables[1]) != exec_info.loaded_columns.end())
         {
             for (int col_idx : exec_info.loaded_columns[rel.tables[1]])
             {
-                const std::vector<bool> col_on_device = table_ptr->get_columns()[col_idx].get_full_col_on_device();
-                if (col_on_device.empty() || !col_on_device[0])
-                {
-                    table_ptr->move_column_to_device_background(col_idx, 0, copy_device_queues[0]);
-                    table_ptr->activate_column_background_device_buffers(col_idx, 0);
-                }
+                if (primary_device_index < 0)
+                    continue;
+
+                table_ptr->move_column_to_device_background(
+                    col_idx,
+                    primary_device_index,
+                    copy_device_queues[primary_device_index]
+                );
+                table_ptr->activate_column_background_device_buffers(
+                    col_idx,
+                    primary_device_index
+                );
             }
         }
 
@@ -1063,24 +1115,80 @@ int data_driven_operator_replacement(int argc, char **argv)
         << " (" << device_queues[d].get_device().get_info<sycl::info::device::name>() << "): "
         << (total_gpu_mem_per_device[d] >> 20) << " MB" << std::endl;
 
-    memory_manager cpu_allocator(cpu_queue, SIZE_TEMP_MEMORY_CPU, SIZE_TEMP_MEMORY_CPU);
-    std::vector<memory_manager> device_allocators;
+    bool many_device_mode = device_queues.size() > 2;
+    std::vector<int> runtime_device_order = build_preferred_device_order(device_queues);
+    int runtime_primary_device_index = runtime_device_order.empty() ? -1 : runtime_device_order.front();
+    uint64_t cpu_allocator_size = SIZE_TEMP_MEMORY_CPU;
+    uint64_t cpu_allocator_region_size = many_device_mode ?
+        (((uint64_t)1) << 30) :
+        SIZE_TEMP_MEMORY_CPU;
+    auto build_device_allocators = [&]() {
+        std::vector<memory_manager> device_allocators;
+        device_allocators.reserve(device_queues.size());
+        for (sycl::queue &gpu_queue : device_queues)
+        {
+            auto device = gpu_queue.get_device();
+            auto backend = gpu_queue.get_device().get_backend();
+            auto mem_size = device.get_info<sycl::info::device::global_mem_size>();
+            uint64_t allocator_size = std::min<uint64_t>(
+                std::max<uint64_t>(SIZE_TEMP_MEMORY_GPU, mem_size / 2),
+                (((uint64_t)10) << 30) + (((uint64_t)512) << 20)
+            );
+            uint64_t allocator_region_size = ((uint64_t)2) << 30;
 
-    device_allocators.reserve(device_queues.size());
-    for (sycl::queue &gpu_queue : device_queues)
-    {
-        auto backend = gpu_queue.get_device().get_backend();
-        auto mem_size = gpu_queue.get_device().get_info<sycl::info::device::global_mem_size>();
-        uint64_t allocator_size = std::min<uint64_t>(
-            std::max<uint64_t>(SIZE_TEMP_MEMORY_GPU, mem_size / 2),
-            (((uint64_t)10) << 30) + (((uint64_t)512) << 20)
-        );
-        uint64_t allocator_region_size = ((uint64_t)2) << 30;
-        if (backend == sycl::backend::ext_oneapi_level_zero)
-            device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size); // intel gpu fails for large allocations
-        else
-            device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size);
-    }
+            bool is_opencl_cpu_device =
+                backend == sycl::backend::opencl && device.is_cpu();
+
+            if (!device.is_gpu())
+            {
+                allocator_size = std::min<uint64_t>(
+                    allocator_size,
+                    is_opencl_cpu_device ?
+                        (((uint64_t)4) << 30) :
+                        (((uint64_t)1) << 30)
+                );
+                allocator_region_size = is_opencl_cpu_device ?
+                    (((uint64_t)1) << 30) :
+                    (((uint64_t)256) << 20);
+            }
+
+            if (many_device_mode)
+            {
+                uint64_t min_multi_device_budget = device.is_gpu() ?
+                    (((uint64_t)4) << 30) :
+                    (is_opencl_cpu_device ?
+                        (((uint64_t)4) << 30) :
+                        (((uint64_t)1) << 30));
+                allocator_size = std::min<uint64_t>(
+                    allocator_size,
+                    std::max<uint64_t>(min_multi_device_budget, mem_size / (device_queues.size() + 2))
+                );
+                allocator_region_size = std::min<uint64_t>(
+                    allocator_region_size,
+                    std::max<uint64_t>(
+                        is_opencl_cpu_device ?
+                            (((uint64_t)1) << 30) :
+                            (((uint64_t)256) << 20),
+                        allocator_size / 2
+                    )
+                );
+            }
+
+            if (backend == sycl::backend::ext_oneapi_level_zero)
+            {
+                allocator_size = std::min<uint64_t>(allocator_size, ((uint64_t)10) << 30);
+                allocator_region_size = std::min<uint64_t>(allocator_region_size, ((uint64_t)1) << 30);
+                device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size); // intel gpu fails for large allocations
+            }
+            else
+                device_allocators.emplace_back(gpu_queue, allocator_size, allocator_region_size);
+        }
+        return device_allocators;
+    };
+    auto wait_for_reset_events = [](const std::vector<sycl::event> &events) {
+        if (!events.empty())
+            sycl::event::wait_and_throw(events);
+    };
 
     try
     {
@@ -1098,51 +1206,109 @@ int data_driven_operator_replacement(int argc, char **argv)
             return 1;
         }
 
-        for (int i = 0; i < PERFORMANCE_REPETITIONS; i++)
+        if (many_device_mode)
         {
-            PlanResult result;
+            memory_manager cpu_allocator(cpu_queue, cpu_allocator_size, cpu_allocator_region_size);
+            auto device_allocators = build_device_allocators();
 
-            auto start = std::chrono::high_resolution_clock::now();
-            client.parse(result, sql);
-            auto exec_time = ddor_execute_result(
-                result,
-                argv[1],
-                tables,
-                cpu_queue,
-                device_queues,
-                copy_device_queues,
-
-                cpu_allocator,
-                device_allocators,
-                perf_file
-            );
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> total_time = end - start;
-
-            wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
-
-            std::cout << "CPU: ";
-            cpu_allocator.reset();
-            for (int d = 0; d < device_allocators.size(); d++)
+            for (int i = 0; i < PERFORMANCE_REPETITIONS; i++)
             {
-                std::cout << "GPU" << d << ": ";
-                device_allocators[d].reset();
+                PlanResult result;
+                std::chrono::duration<double, std::milli> exec_time;
+                std::chrono::duration<double, std::milli> total_time;
+                auto start = std::chrono::high_resolution_clock::now();
+
+                client.parse(result, sql);
+                exec_time = ddor_execute_result(
+                    result,
+                    argv[1],
+                    tables,
+                    cpu_queue,
+                    device_queues,
+                    copy_device_queues,
+
+                    cpu_allocator,
+                    device_allocators,
+                    perf_file
+                );
+                auto end = std::chrono::high_resolution_clock::now();
+                total_time = end - start;
+
+                wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
+
+                std::vector<sycl::event> reset_events = cpu_allocator.reset();
+                for (int d = 0; d < device_allocators.size(); d++)
+                {
+                    if (runtime_primary_device_index >= 0 && d != runtime_primary_device_index)
+                        continue;
+
+                    auto device_reset_events = device_allocators[d].reset();
+                    reset_events.insert(
+                        reset_events.end(),
+                        device_reset_events.begin(),
+                        device_reset_events.end()
+                    );
+                }
+                wait_for_reset_events(reset_events);
+                wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
+
+                end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double, std::milli> after_reset = end - start;
+
+                std::cout << "Repetition " << i + 1 << "/" << PERFORMANCE_REPETITIONS
+                    << " - " << exec_time.count() << " ms - "
+                    << total_time.count() << " ms - " << after_reset.count() << " ms" << std::endl;
             }
+        }
+        else
+        {
+            for (int i = 0; i < PERFORMANCE_REPETITIONS; i++)
+            {
+                PlanResult result;
+                std::chrono::duration<double, std::milli> exec_time;
+                std::chrono::duration<double, std::milli> total_time;
+                auto start = std::chrono::high_resolution_clock::now();
 
-            wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
+                {
+                    memory_manager cpu_allocator(cpu_queue, cpu_allocator_size, cpu_allocator_region_size);
+                    auto device_allocators = build_device_allocators();
 
-            end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> after_reset = end - start;
+                    client.parse(result, sql);
+                    exec_time = ddor_execute_result(
+                        result,
+                        argv[1],
+                        tables,
+                        cpu_queue,
+                        device_queues,
+                        copy_device_queues,
 
-            std::cout << "Repetition " << i + 1 << "/" << PERFORMANCE_REPETITIONS
-                << " - " << exec_time.count() << " ms - "
-                << total_time.count() << " ms - " << after_reset.count() << " ms" << std::endl;
-            // perf_file << total_time.count() << '\n';
+                        cpu_allocator,
+                        device_allocators,
+                        perf_file
+                    );
+                    auto end = std::chrono::high_resolution_clock::now();
+                    total_time = end - start;
+
+                    wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
+                }
+
+                wait_for_all_queues_and_throw(cpu_queue, device_queues, copy_device_queues);
+
+                auto end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double, std::milli> after_reset = end - start;
+
+                std::cout << "Repetition " << i + 1 << "/" << PERFORMANCE_REPETITIONS
+                    << " - " << exec_time.count() << " ms - "
+                    << total_time.count() << " ms - " << after_reset.count() << " ms" << std::endl;
+            }
         }
         perf_file.close();
         #else
         PlanResult result;
         client.parse(result, sql);
+
+        memory_manager cpu_allocator(cpu_queue, cpu_allocator_size, cpu_allocator_region_size);
+        auto device_allocators = build_device_allocators();
 
         auto time = ddor_execute_result(
             result,

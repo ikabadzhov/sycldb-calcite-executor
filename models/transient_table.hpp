@@ -69,6 +69,18 @@ public:
     {
         // std::cout << "Creating transient table with " << nrows << " rows." << std::endl;
 
+        const std::vector<Column> &base_columns = base_table->get_columns();
+        std::vector<bool> base_device_usage(device_queues.size(), false);
+        for (const Column &col : base_columns)
+        {
+            for (const Segment &segment : col.get_segments())
+            {
+                const std::vector<bool> &segment_devices = segment.get_on_device_vec();
+                for (int d = 0; d < device_queues.size() && d < segment_devices.size(); d++)
+                    base_device_usage[d] = base_device_usage[d] || segment_devices[d];
+            }
+        }
+
         flags_host = cpu_allocator.alloc<bool>(nrows, false);
         flags_host_secondary = nullptr;
         auto e1 = cpu_queue.fill<bool>(flags_host, true, nrows);
@@ -79,6 +91,14 @@ public:
         flags_devices_secondary.reserve(device_queues.size());
         for (int d = 0; d < device_queues.size(); d++)
         {
+            if (!base_device_usage[d])
+            {
+                flags_devices.push_back(nullptr);
+                flags_devices_secondary.push_back(nullptr);
+                gpu_events.push_back(sycl::event());
+                continue;
+            }
+
             flags_devices.push_back(device_allocators[d].alloc<bool>(nrows, true));
             flags_devices_secondary.push_back(nullptr);
             gpu_events.push_back(
@@ -92,8 +112,6 @@ public:
         for (int d = 0; d < device_queues.size(); d++)
             flags_modified_devices[d].resize(segment_num, false);
 
-        const std::vector<Column> &base_columns = base_table->get_columns();
-
         current_columns.reserve(base_columns.size() + 100);
         for (const Column &col : base_columns)
             current_columns.push_back(const_cast<Column *>(&col));
@@ -101,6 +119,9 @@ public:
         pending_kernels_dependencies_cpu.push_back(e1);
         for (int d = 0; d < device_queues.size(); d++)
         {
+            if (!base_device_usage[d])
+                continue;
+
             pending_kernels_dependencies_devices[d].reserve(segment_num);
             for (uint64_t segment_index = 0; segment_index < segment_num; segment_index++)
             {
@@ -748,7 +769,7 @@ public:
                     std::back_inserter(segments_flags_devices_input),
                     [segment_number](bool *flags_device)
                     {
-                        return flags_device + segment_number * SEGMENT_SIZE;
+                        return flags_device == nullptr ? nullptr : flags_device + segment_number * SEGMENT_SIZE;
                     }
                 );
                 std::transform(
@@ -1276,12 +1297,19 @@ public:
             for (int d = 0; d < device_queues.size(); d++)
             {
                 pending_kernels_dependencies_devices[d] = dependencies.second[d];
-                bool *new_flags = device_allocators[d].alloc<bool>(1, true);
                 flags_devices_secondary[d] = nullptr;
-                pending_kernels_dependencies_devices[d].push_back(
-                    device_queues[d].fill<bool>(new_flags, true, 1)
-                );
-                flags_devices[d] = new_flags;
+
+                if (on_device && d == device_index)
+                {
+                    bool *new_flags = device_allocators[d].alloc<bool>(1, true);
+                    pending_kernels_dependencies_devices[d].push_back(
+                        device_queues[d].fill<bool>(new_flags, true, 1)
+                    );
+                    flags_devices[d] = new_flags;
+                }
+                else
+                    flags_devices[d] = nullptr;
+
                 flags_modified_devices[d] = { false };
             }
 

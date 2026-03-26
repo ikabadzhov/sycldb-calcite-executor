@@ -184,6 +184,9 @@ T *memory_manager::alloc(uint64_t count, bool on_device)
 
     std::cerr << "Memory manager out of memory regions on "
         << (on_device ? "device" : "host")
+        << " (" << queue->get_device().get_info<sycl::info::device::name>()
+        << ", backend "
+        << static_cast<int>(queue->get_device().get_backend()) << ")"
         << ": requested " << (count * sizeof(T))
         << " bytes, " << remaining
         << " bytes remain in the allocator budget"
@@ -217,8 +220,11 @@ T *memory_manager::alloc_zero(uint64_t count)
         return regions_zero_device.back().alloc<T>(count);
     }
 
-    std::cerr << "Memory manager out of zeroed memory regions on device: requested "
-        << (count * sizeof(T))
+    std::cerr << "Memory manager out of zeroed memory regions on device"
+        << " (" << queue->get_device().get_info<sycl::info::device::name>()
+        << ", backend "
+        << static_cast<int>(queue->get_device().get_backend()) << ")"
+        << ": requested " << (count * sizeof(T))
         << " bytes, " << remaining
         << " bytes remain in the allocator budget"
         << std::endl;
