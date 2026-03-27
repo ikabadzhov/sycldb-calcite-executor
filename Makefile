@@ -2,10 +2,10 @@ export PATH := /media/ACPP/AdaptiveCpp-25.10.0/install/bin:$(PATH)
 export ACPP_CPU_CXX := /usr/bin/g++
 export ACPP_CLANG := /usr/bin/clang++-16
 export ACPP_CUDA_PATH := /usr/local/cuda-12.6
+export ACPP_ROCM_PATH := /opt/rocm-6.3.3
 
 CXX := acpp
-# Targets for NVIDIA sm_89 and OpenMP (CPU)
-CXXFLAGS := -std=c++20 -O3 --acpp-targets="omp;cuda:sm_89" \
+CXXFLAGS := -std=c++20 -O3 --acpp-targets="generic" \
 	-I. -Iapp -Ibenchmark -Iexecutor -Iruntime -Ikernels -Igen-cpp -Ioperations -Imodels -I/usr/local/include
 LDFLAGS := -L/usr/local/lib -lthrift -Wl,-rpath=/usr/local/lib
 

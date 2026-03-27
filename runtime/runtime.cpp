@@ -28,7 +28,6 @@ std::string backend_to_string(sycl::backend b)
 #endif
     case sycl::backend::cuda: return "CUDA";
     case sycl::backend::hip: return "HIP";
-    case sycl::backend::level_zero: return "Level Zero";
     default: return "Unknown";
     }
 }
@@ -53,8 +52,6 @@ int device_preload_priority(const sycl::device &device)
     if (backend == sycl::backend::ext_oneapi_level_zero)
         return 100;
 #endif
-    if (backend == sycl::backend::level_zero)
-        return 100;
 
     return 0;
 }
@@ -168,9 +165,7 @@ RuntimeEnvironment build_runtime_environment()
     runtime.config.many_device_mode = runtime.queues.device_queues.size() > 2;
     runtime.config.reuse_allocators_across_repetitions =
         !runtime.queues.device_queues.empty();
-    runtime.config.cpu_allocator_region_size = runtime.config.many_device_mode ?
-        (((uint64_t)1) << 30) :
-        SIZE_TEMP_MEMORY_CPU;
+    runtime.config.cpu_allocator_region_size = SIZE_TEMP_MEMORY_CPU;
 
     const std::vector<int> preferred_order =
         build_preferred_device_order(runtime.queues.device_queues);
@@ -246,9 +241,12 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
         const auto backend = device.get_backend();
         const uint64_t mem_size =
             device.get_info<sycl::info::device::global_mem_size>();
-        const bool is_opencl_cpu_device =
-            backend == sycl::backend::ocl && device.is_cpu();
-        const uint64_t max_allocator_size = is_opencl_cpu_device ?
+        
+        const bool is_cpu_backend = 
+            (backend == sycl::backend::ocl && device.is_cpu()) ||
+            (backend == sycl::backend::omp);
+
+        const uint64_t max_allocator_size = is_cpu_backend ?
             SIZE_TEMP_MEMORY_CPU :
             ((((uint64_t)10) << 30) + (((uint64_t)512) << 20));
 
@@ -260,17 +258,17 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
 
         if (!device.is_gpu())
         {
-            if (!is_opencl_cpu_device)
+            if (!is_cpu_backend)
                 allocator_size = std::min<uint64_t>(allocator_size, (((uint64_t)1) << 30));
-            allocator_region_size = is_opencl_cpu_device ?
+            allocator_region_size = is_cpu_backend ?
                 (((uint64_t)1) << 30) :
                 (((uint64_t)256) << 20);
         }
 
         if (runtime.config.many_device_mode)
         {
-            const uint64_t min_budget = is_opencl_cpu_device ?
-                (((uint64_t)4) << 30) :
+            const uint64_t min_budget = is_cpu_backend ?
+                (((uint64_t)10) << 30) :
                 (((uint64_t)1) << 30);
 
             if (!device.is_gpu())
@@ -287,25 +285,12 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
             allocator_region_size = std::min<uint64_t>(
                 allocator_region_size,
                 std::max<uint64_t>(
-                    is_opencl_cpu_device ?
+                    is_cpu_backend ?
                         (((uint64_t)1) << 30) :
                         (((uint64_t)256) << 20),
                     allocator_size / 2
                 )
             );
-        }
-
-#ifdef SYCL_EXT_ONEAPI_BACKEND_LEVEL_ZERO
-        if (backend == sycl::backend::ext_oneapi_level_zero)
-        {
-            allocator_size = std::min<uint64_t>(allocator_size, ((uint64_t)10) << 30);
-            allocator_region_size = std::min<uint64_t>(allocator_region_size, ((uint64_t)1) << 30);
-        }
-#endif
-        if (backend == sycl::backend::level_zero)
-        {
-            allocator_size = std::min<uint64_t>(allocator_size, ((uint64_t)10) << 30);
-            allocator_region_size = std::min<uint64_t>(allocator_region_size, ((uint64_t)1) << 30);
         }
 
         device_allocators.emplace_back(queue, allocator_size, allocator_region_size);

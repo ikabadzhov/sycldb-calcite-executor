@@ -972,7 +972,7 @@ public:
                     cpu_queue,
                     device_queues,
                     cpu_allocator,
-                    device_allocators[0]
+                    device_allocators
                 ));
 
                 // TODO better way
@@ -1000,7 +1000,7 @@ public:
                     cpu_queue,
                     device_queues,
                     cpu_allocator,
-                    device_allocators[0]
+                    device_allocators
                 ));
 
                 std::vector<KernelBundle> ops;
@@ -1720,6 +1720,7 @@ public:
                 build_max_value,
                 ht_cpu,
                 ht_devices,
+                device_allocators,
                 flags_modified_host,
                 flags_modified_devices
             );
@@ -1762,7 +1763,7 @@ public:
                 cpu_queue,
                 device_queues,
                 cpu_allocator,
-                device_allocators[0],
+                device_allocators,
                 true
             ));
 

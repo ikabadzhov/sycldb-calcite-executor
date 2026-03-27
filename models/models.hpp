@@ -1098,7 +1098,7 @@ public:
         sycl::queue &cpu_queue,
         std::vector<sycl::queue> &device_queues,
         memory_manager &cpu_allocator,
-        memory_manager &device_allocator,
+        std::vector<memory_manager> &device_allocators,
         bool use_alloc_host = false)
         : is_aggregate_result(false)
     {
@@ -1108,10 +1108,16 @@ public:
         segments.reserve(full_segments + (remainder > 0));
 
         for (uint64_t i = 0; i < full_segments; i++)
-            segments.emplace_back(cpu_queue, device_queues, cpu_allocator, device_allocator, use_alloc_host);
+        {
+            int device_index = i % device_allocators.size();
+            segments.emplace_back(cpu_queue, device_queues, cpu_allocator, device_allocators[device_index], use_alloc_host);
+        }
 
         if (remainder > 0)
-            segments.emplace_back(cpu_queue, device_queues, cpu_allocator, device_allocator, use_alloc_host, remainder);
+        {
+            int device_index = full_segments % device_allocators.size();
+            segments.emplace_back(cpu_queue, device_queues, cpu_allocator, device_allocators[device_index], use_alloc_host, remainder);
+        }
     }
 
     Column(
@@ -1447,11 +1453,12 @@ public:
         const bool *probe_flags_cpu_input,
         bool *probe_flags_cpu_output,
         const std::vector<bool *> &probe_flags_devices_input,
-        const std::vector<bool *> &probe_flags_devices_output,
+        std::vector<bool *> &probe_flags_devices_output,
         int build_min_value,
         int build_max_value,
         const bool *ht_cpu,
         const std::vector<bool *> &ht_devices,
+        std::vector<memory_manager> &device_allocators,
         std::vector<bool> &flags_modified_host,
         std::vector<std::vector<bool>> &flags_modified_devices
     ) const
@@ -1464,6 +1471,12 @@ public:
             const Segment &seg = segments[i];
             int device_index = seg.get_device_index();
             bool on_device = seg.is_on_device() && ht_devices[device_index] != nullptr;
+
+            if (on_device && probe_flags_devices_output[device_index] == nullptr)
+            {
+                probe_flags_devices_output[device_index] = device_allocators[device_index].alloc<bool>(seg.get_nrows(), true);
+            }
+
             KernelBundle bundle(on_device, device_index);
 
             bundle.add_kernel(
@@ -1536,7 +1549,7 @@ public:
         const bool *probe_flags_host_input,
         bool *probe_flags_host_output,
         const std::vector<bool *> &probe_flags_devices_input,
-        const std::vector<bool *> &probe_flags_devices_output,
+        std::vector<bool *> &probe_flags_devices_output,
         int build_min_value,
         int build_max_value,
         int group_by_column_min,
@@ -1567,6 +1580,11 @@ public:
                 {
                     if (on_device_vec[d] && build_hts_devices[d] != nullptr)
                     {
+                        if (probe_flags_devices_output[d] == nullptr)
+                        {
+                            probe_flags_devices_output[d] = device_allocators[d].alloc<bool>(seg.get_nrows(), true);
+                        }
+
                         KernelBundle bundle(on_device, d);
 
                         new_seg.build_on_device(device_allocators[d], d);
