@@ -143,7 +143,7 @@ public:
         {
             auto k = static_cast<SelectionKernelColumns *>(kernel_def.get());
             ctx.col_ptrs[i] = k->operand1;
-            ctx.col_ptrs[i+8] = k->operand2;
+            ctx.col_ptrs2[i] = k->operand2;
             ctx.params[i*8+0] = (int)k->comparison;
             ctx.params[i*8+1] = (int)k->logic;
             break;
@@ -162,7 +162,7 @@ public:
             auto k = static_cast<PerformOperationKernelColumns *>(kernel_def.get());
             ctx.res_ptrs[i] = k->result;
             ctx.col_ptrs[i] = k->col1;
-            ctx.col_ptrs[i+8] = k->col2;
+            ctx.col_ptrs2[i] = k->col2;
             ctx.params[i*8+2] = (int)k->op_enum;
             break;
         }
@@ -558,10 +558,14 @@ public:
                 
                 auto jit_kernel = cfg.apply([=](sycl::item<1> idx, auto& acc_red) {
                     bool pass = initial_flags ? initial_flags[idx] : true;
-                    uint64_t acc = 0;
-                    execute_sycldb_ops_agg(idx, ctx, pass, acc);
-                    acc_red += acc;
-                    if (final_flags) final_flags[idx] = pass;
+                    if (__builtin_expect(pass, 1)) {
+                        uint64_t acc = 0;
+                        execute_sycldb_ops_agg(idx, ctx, pass, acc);
+                        if (acc != 0) acc_red += acc;
+                        if (final_flags) final_flags[idx] = pass;
+                    } else {
+                        if (final_flags) final_flags[idx] = false;
+                    }
                 });
                 auto jit_end = std::chrono::high_resolution_clock::now();
                 double jit_time = std::chrono::duration<double, std::milli>(jit_end - jit_start).count();
@@ -577,9 +581,13 @@ public:
                         cgh.parallel_for(sycl::range<1>{(size_t)col_len}, 
                             cfg.apply([=](sycl::item<1> idx) {
                                 bool pass = initial_flags ? initial_flags[idx] : true;
-                                uint64_t acc = 0;
-                                execute_sycldb_ops_agg(idx, ctx, pass, acc);
-                                if (final_flags) final_flags[idx] = pass;
+                                if (__builtin_expect(pass, 1)) {
+                                    uint64_t acc = 0;
+                                    execute_sycldb_ops_agg(idx, ctx, pass, acc);
+                                    if (final_flags) final_flags[idx] = pass;
+                                } else {
+                                    if (final_flags) final_flags[idx] = false;
+                                }
                             }));
                     }
                 });

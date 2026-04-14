@@ -1,0 +1,14 @@
+Query,Device,AvgTime_ms
+q11.sql,AMD Instinct MI210,76.6755
+q12.sql,AMD Instinct MI210,61.2165
+q13.sql,AMD Instinct MI210,56.5007
+q21.sql,AMD Instinct MI210,120
+q22.sql,AMD Instinct MI210,100.161
+q23.sql,AMD Instinct MI210,98.0965
+q31.sql,AMD Instinct MI210,85.9067
+q32.sql,AMD Instinct MI210,80.1588
+q33.sql,AMD Instinct MI210,81.9735
+q34.sql,AMD Instinct MI210,75.4836
+q41.sql,AMD Instinct MI210,114.954
+q42.sql,AMD Instinct MI210,85.4751
+q43.sql,AMD Instinct MI210,89.3368

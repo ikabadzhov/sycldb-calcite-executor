@@ -1,0 +1,92 @@
+Found 6 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    Intel(R) Data Center GPU Flex 170
+Vendor:  Intel(R) Data Center GPU Flex 170
+MemSize (MB): 13535
+Max Compute Units: 512
+Platform: OpenCL (platform 1)
+Backend: OpenCL
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: NVIDIA L40S
+Running on device: AMD Instinct MI210
+Running on device: Intel(R) Data Center GPU Flex 170
+Running on device: NVIDIA L40S
+Running on device: NVIDIA L40S
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (Intel(R) Data Center GPU Flex 170): 0 MB
+Device 2 (NVIDIA L40S): 0 MB
+Device 3 (NVIDIA L40S): 0 MB
+Transport opened successfully.
+Engine Breakdown: Load 8134.46 ms, Kernel 849.716 ms - Repetition 1/5 - 8984.17 ms - 9306.01 ms - JIT: 0 ms, Kernel: 849.047 ms, Parse: 4.5432 ms
+Engine Breakdown: Load 0.672616 ms, Kernel 57.3874 ms - Repetition 2/5 - 58.06 ms - 64.5999 ms - JIT: 0 ms, Kernel: 57.2877 ms, Parse: 5.86087 ms
+Engine Breakdown: Load 0.491248 ms, Kernel 57.2789 ms - Repetition 3/5 - 57.7702 ms - 62.0748 ms - JIT: 0 ms, Kernel: 57.1878 ms, Parse: 3.88546 ms
+Engine Breakdown: Load 0.283045 ms, Kernel 57.5984 ms - Repetition 4/5 - 57.8815 ms - 62.2762 ms - JIT: 0 ms, Kernel: 57.506 ms, Parse: 3.96275 ms
+Engine Breakdown: Load 0.262564 ms, Kernel 57.4051 ms - Repetition 5/5 - 57.6677 ms - 61.879 ms - JIT: 0 ms, Kernel: 57.3351 ms, Parse: 3.78489 ms
+ Kernel 123.496 ms - Repetition 4/5 - 2095.41 ms - 2101.47 ms - JIT: 0.016679 ms, Kernel: 123.261 ms, Parse: 5.40106 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.00305 ms, Kernel time: 17.1144 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.001905 ms, Kernel time: 16.4256 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.001803 ms, Kernel time: 3.77493 ms
+Engine Breakdown: Load 1903.18 ms, Kernel 37.438 ms - Repetition 5/5 - 1940.62 ms - 1946.52 ms - JIT: 0.006758 ms, Kernel: 37.3149 ms, Parse: 5.55638 ms

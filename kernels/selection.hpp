@@ -59,7 +59,7 @@ inline bool is_filter_logical(const std::string &op)
 }
 
 template <typename T>
-inline bool compare(comp_op CO, T a, T b)
+__attribute__((always_inline)) inline bool compare(comp_op CO, T a, T b)
 {
     switch (CO)
     {
@@ -80,7 +80,7 @@ inline bool compare(comp_op CO, T a, T b)
     }
 }
 
-inline bool logical(logical_op logic, bool a, bool b)
+__attribute__((always_inline)) inline bool logical(logical_op logic, bool a, bool b)
 {
     switch (logic)
     {

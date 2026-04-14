@@ -1,0 +1,81 @@
+Found 2 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    AdaptiveCpp OpenMP host device
+Vendor:  the AdaptiveCpp project
+MemSize (MB): 1031724
+Max Compute Units: 128
+Platform: OpenMP (platform 0)
+Backend: OpenMP
+---------------------------------
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: AMD Instinct MI210
+Running on device: AMD Instinct MI210
+Running on device: AdaptiveCpp OpenMP host device
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (AdaptiveCpp OpenMP host device): 0 MB
+Transport opened successfully.
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Engine Breakdown: Load 4882.22 ms, Kernel 1903.59 ms - Repetition 1/5 - 6785.81 ms - 6810.93 ms - JIT: 0 ms, Kernel: 1439.85 ms, Parse: 23.2515 ms
+Engine Breakdown: Load 1975.57 ms, Kernel 33.2448 ms - Repetition 2/5 - 2008.82 ms - 2019.29 ms - JIT: 0 ms, Kernel: 33.1295 ms, Parse: 10.0308 ms
+Engine Breakdown: Load 2220.83 ms, Kernel 33.3411 ms - Repetition 3/5 - 2254.18 ms - 2278.14 ms - JIT: 0 ms, Kernel: 33.1483 ms, Parse: 23.3647 ms
+Engine Breakdown: Load 2240.77 ms, Kernel 33.1848 ms - Repetition 4/5 - 2273.95 ms - 2306.94 ms - JIT: 0 ms, Kernel: 33.0386 ms, Parse: 32.524 ms
+Engine Breakdown: Load 1763 ms, Kernel 32.8504 ms - Repetition 5/5 - 1795.85 ms - 1819.91 ms - JIT: 0 ms, Kernel: 32.76 ms, Parse: 23.6072 ms
+[1;31m[AdaptiveCpp Error] [0mCould not remove kernel cache file: /home/ivan/.acpp/apps/client-3084744470594245042/jit-cache/3153096841371102686.1600188780294363734.jit.so
+SION] Partial fusion (size 3) JIT time: 0.000894 ms, Kernel time: 6.85038 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000892 ms, Kernel time: 1.65925 ms
+Engine Breakdown: Load 2241.18 ms, Kernel 21.5998 ms - Repetition 3/5 - 2262.78 ms - 2287.99 ms - JIT: 0.005012 ms, Kernel: 21.4758 ms, Parse: 24.7982 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003358 ms, Kernel time: 6.92041 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001495 ms, Kernel time: 6.86866 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001697 ms, Kernel time: 1.69268 ms
+Engine Breakdown: Load 1796.73 ms, Kernel 22.3706 ms - Repetition 4/5 - 1819.1 ms - 1843.02 ms - JIT: 0.00655 ms, Kernel: 22.1373 ms, Parse: 23.417 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003123 ms, Kernel time: 6.87292 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000655 ms, Kernel time: 6.84383 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000422 ms, Kernel time: 1.65805 ms
+Engine Breakdown: Load 2125.38 ms, Kernel 21.6281 ms - Repetition 5/5 - 2147 ms - 2171.41 ms - JIT: 0.0042 ms, Kernel: 21.4762 ms, Parse: 23.9638 ms

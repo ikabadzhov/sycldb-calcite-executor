@@ -10,12 +10,13 @@
 
 extern "C" {
     struct SYCLDBContext {
-        const int* col_ptrs[32];
-        int* res_ptrs[32];
-        int values[32];
-        const bool* ht_ptrs[32];
-        const int* ht_int_ptrs[32];
-        int params[256]; // generic parameters: 32 slots * 8 params each
+        const int* __restrict__ col_ptrs[8];
+        const int* __restrict__ col_ptrs2[8];
+        int* __restrict__ res_ptrs[8];
+        int values[8];
+        const bool* __restrict__ ht_ptrs[8];
+        const int* __restrict__ ht_int_ptrs[8];
+        int params[64]; // generic parameters: 8 slots * 8 params each
     };
 
 #define DECLARE_JIT_SLOTS(name) \

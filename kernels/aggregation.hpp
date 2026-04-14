@@ -17,7 +17,7 @@ enum class BinaryOp : uint8_t
 };
 
 template <typename T>
-inline T element_operation(T a, T b, BinaryOp op)
+__attribute__((always_inline)) inline T element_operation(T a, T b, BinaryOp op)
 {
     switch (op)
     {
