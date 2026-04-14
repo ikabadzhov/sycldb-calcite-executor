@@ -128,13 +128,12 @@ inline sycl::event build_key_vals_ht(
 
 class FilterJoinKernel : public KernelDefinition
 {
-private:
+public:
     const int *probe_col;
     const bool *input_flags;
     bool *output_flags;
     const bool *build_ht;
     int build_min_value, build_max_value, ht_len;
-public:
     FilterJoinKernel(
         const int *probe_column,
         const bool *probe_input_flags,
@@ -256,14 +255,13 @@ inline sycl::event filter_join(
 
 class FullJoinKernel : public KernelDefinition
 {
-private:
+public:
     const int *probe_col;
     int *probe_val_out;
     const bool *input_flags;
     bool *output_flags;
     const int *ht;
     int ht_len, ht_min_value, ht_max_value;
-public:
     FullJoinKernel(
         const int *probe_column,
         int *probe_value_output,

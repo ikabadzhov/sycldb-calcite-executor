@@ -4,6 +4,7 @@
 #include <iostream>
 #include <numeric>
 #include <stdexcept>
+#include "../kernels/jit_kernels.hpp"
 
 namespace runtime_setup
 {
@@ -171,6 +172,9 @@ RuntimeEnvironment build_runtime_environment()
         build_preferred_device_order(runtime.queues.device_queues);
     runtime.config.primary_device_index =
         preferred_order.empty() ? -1 : preferred_order.front();
+
+    for (sycl::queue &q : runtime.queues.device_queues)
+        force_emit_kernels(q);
 
     runtime.tables = load_base_tables(runtime.queues);
 

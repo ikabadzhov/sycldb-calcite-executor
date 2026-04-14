@@ -28,6 +28,10 @@ struct QueryRunSummary
 {
     std::vector<double> engine_ms;
     std::vector<double> total_ms;
+    std::vector<double> jit_ms;
+    std::vector<double> kernel_ms;
+    std::vector<double> load_ms;
+    std::vector<double> parse_ms;
 
     double warm_average_total_ms() const
     {
@@ -53,8 +57,8 @@ std::string resolve_benchmark_device_name(
     if (const char *selector = std::getenv("ONEAPI_DEVICE_SELECTOR"))
         return selector;
 
-    if (!runtime.queues.device_queues.empty())
-        return runtime.queues.device_queues.front()
+    if (!runtime.queues.device_queues.empty() && runtime.config.primary_device_index != -1)
+        return runtime.queues.device_queues[runtime.config.primary_device_index]
             .get_device()
             .get_info<sycl::info::device::name>();
 
@@ -91,8 +95,12 @@ QueryRunSummary run_query_repetitions(
         for (int i = 0; i < PERFORMANCE_REPETITIONS; ++i)
         {
             PlanResult result;
-            const auto start = std::chrono::high_resolution_clock::now();
+            const auto parse_start = std::chrono::high_resolution_clock::now();
             planner.parse(result, sql);
+            const auto parse_end = std::chrono::high_resolution_clock::now();
+            const std::chrono::duration<double, std::milli> parse_time = parse_end - parse_start;
+
+            reset_jit_timers();
             const auto exec_time = executor::execute_ddor_plan(
                 result,
                 query_path,
@@ -104,7 +112,7 @@ QueryRunSummary run_query_repetitions(
                 perf_out
             );
             auto end = std::chrono::high_resolution_clock::now();
-            const std::chrono::duration<double, std::milli> total_time = end - start;
+            const std::chrono::duration<double, std::milli> total_time = end - parse_start;
 
             runtime_setup::wait_for_all_queues_and_throw(runtime.queues);
             auto reset_events = runtime_setup::reset_allocators(
@@ -115,28 +123,33 @@ QueryRunSummary run_query_repetitions(
             runtime_setup::wait_for_reset_events(reset_events);
             runtime_setup::wait_for_all_queues_and_throw(runtime.queues);
 
-            end = std::chrono::high_resolution_clock::now();
-            const std::chrono::duration<double, std::milli> after_reset = end - start;
-
             summary.engine_ms.push_back(exec_time.count());
             summary.total_ms.push_back(total_time.count());
+            summary.jit_ms.push_back(g_total_jit_ms);
+            summary.kernel_ms.push_back(g_total_kernel_ms);
+            summary.load_ms.push_back(g_total_load_ms);
+            summary.parse_ms.push_back(parse_time.count());
 
             std::cout << "Repetition " << i + 1 << "/" << PERFORMANCE_REPETITIONS
                 << " - " << exec_time.count() << " ms - "
                 << total_time.count() << " ms - "
-                << after_reset.count() << " ms" << std::endl;
+                << "JIT: " << g_total_jit_ms << " ms, Kernel: " << g_total_kernel_ms << " ms, Parse: " << parse_time.count() << " ms" << std::endl;
         }
     }
     else
     {
+        memory_manager cpu_allocator = runtime_setup::build_cpu_allocator(runtime);
+        auto device_allocators = runtime_setup::build_device_allocators(runtime);
+
         for (int i = 0; i < PERFORMANCE_REPETITIONS; ++i)
         {
-            memory_manager cpu_allocator = runtime_setup::build_cpu_allocator(runtime);
-            auto device_allocators = runtime_setup::build_device_allocators(runtime);
-
             PlanResult result;
-            const auto start = std::chrono::high_resolution_clock::now();
+            const auto parse_start = std::chrono::high_resolution_clock::now();
             planner.parse(result, sql);
+            const auto parse_end = std::chrono::high_resolution_clock::now();
+            const std::chrono::duration<double, std::milli> parse_time = parse_end - parse_start;
+
+            reset_jit_timers();
             const auto exec_time = executor::execute_ddor_plan(
                 result,
                 query_path,
@@ -148,19 +161,25 @@ QueryRunSummary run_query_repetitions(
                 perf_out
             );
             auto end = std::chrono::high_resolution_clock::now();
-            const std::chrono::duration<double, std::milli> total_time = end - start;
-
-            runtime_setup::wait_for_all_queues_and_throw(runtime.queues);
-            end = std::chrono::high_resolution_clock::now();
-            const std::chrono::duration<double, std::milli> after_reset = end - start;
+            const std::chrono::duration<double, std::milli> total_time = end - parse_start;
 
             summary.engine_ms.push_back(exec_time.count());
             summary.total_ms.push_back(total_time.count());
+            summary.jit_ms.push_back(g_total_jit_ms);
+            summary.kernel_ms.push_back(g_total_kernel_ms);
+            summary.load_ms.push_back(g_total_load_ms);
+            summary.parse_ms.push_back(parse_time.count());
 
             std::cout << "Repetition " << i + 1 << "/" << PERFORMANCE_REPETITIONS
                 << " - " << exec_time.count() << " ms - "
                 << total_time.count() << " ms - "
-                << after_reset.count() << " ms" << std::endl;
+                << "JIT: " << g_total_jit_ms << " ms, Kernel: " << g_total_kernel_ms << " ms, Parse: " << parse_time.count() << " ms" << std::endl;
+
+            // Reset allocators for next repetition
+            runtime_setup::wait_for_all_queues_and_throw(runtime.queues);
+            auto reset_events = runtime_setup::reset_allocators(runtime, cpu_allocator, device_allocators);
+            runtime_setup::wait_for_reset_events(reset_events);
+            runtime_setup::wait_for_all_queues_and_throw(runtime.queues);
         }
     }
 
@@ -208,7 +227,7 @@ int run_ssb_benchmark(
         throw std::runtime_error("could not open benchmark results file: " + options.benchmark_results_path);
 
     if (!options.append_results)
-        results << "Query,Device,AvgTime_ms\n";
+        results << "Query,Repetition,Device,TotalTime_ms,JIT_ms,Kernel_ms,Transfer_ms,Parse_ms,Other_ms\n";
 
     for (const std::string &query_path : queries)
     {
@@ -225,11 +244,29 @@ int run_ssb_benchmark(
             perf_sink
         );
 
-        results << query_filename_from_path(query_path)
-            << "," << device_name
-            << "," << summary.warm_average_total_ms()
-            << "\n";
+        for (int i = 0; i < PERFORMANCE_REPETITIONS; ++i)
+        {
+            double jit = summary.jit_ms[i];
+            double kernel = summary.kernel_ms[i];
+            double load = summary.load_ms[i];
+            double parse = summary.parse_ms[i];
+            double total = summary.engine_ms[i];
+            double other = total - jit - kernel - load;
+
+            results << query_filename_from_path(query_path)
+                << "," << i + 1
+                << "," << device_name
+                << "," << total
+                << "," << jit
+                << "," << kernel
+                << "," << load
+                << "," << parse
+                << "," << other
+                << "\n";
+        }
+        results.flush();
     }
+    results.close();
 
     return 0;
 }

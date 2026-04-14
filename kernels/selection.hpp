@@ -105,12 +105,11 @@ public:
 
 class LogicalKernel : public KernelDefinition
 {
-private:
+public:
     logical_op logic;
     const bool *input_flags;
     const bool *local_flags;
     bool *output_flags;
-public:
     LogicalKernel(logical_op log, const bool *input, const bool *local, bool *output, int len)
         : KernelDefinition(len), logic(log), input_flags(input), local_flags(local), output_flags(output)
     {}
@@ -127,13 +126,12 @@ public:
 
 class SelectionKernelColumns : public KernelDefinition
 {
-private:
+public:
     comp_op comparison;
     logical_op logic;
     const bool *input_flags;
     bool *output_flags;
     const int *operand1, *operand2;
-public:
     SelectionKernelColumns(comp_op comp, logical_op log, const bool *input, bool *output, const int *op1, const int *op2, int len)
         : KernelDefinition(len), comparison(comp), logic(log), input_flags(input), output_flags(output), operand1(op1), operand2(op2)
     {}
@@ -158,14 +156,13 @@ public:
 
 class SelectionKernelLiteral : public KernelDefinition
 {
-private:
+public:
     comp_op comparison;
     logical_op logic;
     const bool *input_flags;
     bool *output_flags;
     const int *operand1;
     int value;
-public:
     SelectionKernelLiteral(comp_op comp, logical_op log, const bool *input, bool *output, const int *op1, int val, int len)
         : KernelDefinition(len), comparison(comp), logic(log), input_flags(input), output_flags(output), operand1(op1), value(val)
     {}

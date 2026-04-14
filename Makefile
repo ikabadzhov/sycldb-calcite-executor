@@ -5,7 +5,7 @@ export ACPP_CUDA_PATH := /usr/local/cuda-12.6
 export ACPP_ROCM_PATH := /opt/rocm-6.3.3
 
 CXX := acpp
-CXXFLAGS := -std=c++20 -O3 --acpp-targets="generic" \
+CXXFLAGS := -std=c++20 -O3 -fPIC --acpp-targets="generic" \
 	-I. -Iapp -Ibenchmark -Iexecutor -Iruntime -Ikernels -Igen-cpp -Ioperations -Imodels -I/usr/local/include
 LDFLAGS := -L/usr/local/lib -lthrift -Wl,-rpath=/usr/local/lib
 

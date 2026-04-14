@@ -49,12 +49,11 @@ inline BinaryOp get_op_from_string(const std::string &op)
 
 class PerformOperationKernelColumns : public KernelDefinition
 {
-private:
+public:
     int *result;
     const int *col1, *col2;
     const bool *flags;
     BinaryOp op_enum;
-public:
     PerformOperationKernelColumns(int *result, const int *col1, const int *col2, const bool *flags, BinaryOp op, int col_len)
         : KernelDefinition(col_len), result(result), col1(col1), col2(col2), flags(flags), op_enum(op)
     {}
@@ -102,13 +101,12 @@ inline sycl::event perform_operation(
 
 class PerformOperationKernelLiteralFirst : public KernelDefinition
 {
-private:
+public:
     int *result;
     int literal;
     const int *col;
     const bool *flags;
     BinaryOp op_enum;
-public:
     PerformOperationKernelLiteralFirst(int *res, int lit, const int *column, const bool *flgs, BinaryOp op, int col_len)
         : KernelDefinition(col_len), result(res), literal(lit), col(column), flags(flgs), op_enum(op)
     {}
@@ -156,13 +154,12 @@ inline sycl::event perform_operation(
 
 class PerformOperationKernelLiteralSecond : public KernelDefinition
 {
-private:
+public:
     int *result;
     const int *col;
     int literal;
     const bool *flags;
     BinaryOp op_enum;
-public:
     PerformOperationKernelLiteralSecond(int *res, const int *column, int lit, const bool *flgs, BinaryOp op, int col_len)
         : KernelDefinition(col_len), result(res), col(column), literal(lit), flags(flgs), op_enum(op)
     {}
@@ -210,11 +207,10 @@ inline sycl::event perform_operation(
 
 class AggregateOperationKernel : public KernelDefinition
 {
-private:
+public:
     const int *data;
     const bool *flags;
     uint64_t *agg_res;
-public:
     AggregateOperationKernel(const int *data, const bool *flags, int col_len, uint64_t *agg_res)
         : KernelDefinition(col_len), data(data), flags(flags), agg_res(agg_res)
     {}

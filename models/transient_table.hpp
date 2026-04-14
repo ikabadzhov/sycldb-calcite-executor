@@ -344,6 +344,42 @@ public:
         return out;
     }
 
+    void add_pending_kernels(const std::vector<KernelBundle> &ops)
+    {
+        if (pending_kernels.empty())
+        {
+            pending_kernels.push_back(ops);
+        }
+        else
+        {
+            auto &last_ops = pending_kernels.back();
+            bool can_merge = (last_ops.size() == ops.size());
+            for (size_t i = 0; i < ops.size() && can_merge; ++i)
+            {
+                if (last_ops[i].is_on_device() != ops[i].is_on_device() ||
+                    last_ops[i].get_device_index() != ops[i].get_device_index())
+                {
+                    can_merge = false;
+                }
+            }
+
+            if (can_merge)
+            {
+                for (size_t i = 0; i < ops.size(); ++i)
+                {
+                    for (const auto &k : ops[i].get_kernels())
+                    {
+                        last_ops[i].add_kernel(k);
+                    }
+                }
+            }
+            else
+            {
+                pending_kernels.push_back(ops);
+            }
+        }
+    }
+
     std::pair<std::vector<sycl::event>, std::vector<std::vector<sycl::event>>> execute_pending_kernels()
     {
         // std::cout << "start execute" << std::endl;
@@ -680,7 +716,7 @@ public:
         );
 
         std::vector<KernelBundle> ht_kernels = std::get<3>(ht_res);
-        pending_kernels.push_back(ht_kernels);
+        add_pending_kernels(ht_kernels);
 
         return std::make_tuple(
             std::get<0>(ht_res),
@@ -702,7 +738,7 @@ public:
         );
 
         std::vector<KernelBundle> ht_kernels = std::get<3>(ht_res);
-        pending_kernels.push_back(ht_kernels);
+        add_pending_kernels(ht_kernels);
 
         return std::make_tuple(
             std::get<0>(ht_res),
@@ -803,7 +839,7 @@ public:
                 ops.push_back(bundle);
             }
 
-            pending_kernels.push_back(ops);
+            add_pending_kernels(ops);
             swap_flag_buffers(ops);
         }
         else if (is_filter_logical(expr.op))
@@ -939,7 +975,7 @@ public:
                 ops.push_back(bundle);
             }
 
-            pending_kernels.push_back(ops);
+            add_pending_kernels(ops);
             swap_flag_buffers(ops);
         }
     }
@@ -978,7 +1014,7 @@ public:
                 // TODO better way
 
                 std::vector<KernelBundle> fill_bundles_cpu = new_col.fill_with_literal(literal_value, false, -1, cpu_allocator);
-                pending_kernels.push_back(fill_bundles_cpu);
+                add_pending_kernels(fill_bundles_cpu);
 
                 // std::vector<KernelBundle> fill_bundles_gpu = new_col.fill_with_literal(literal_value, true, 0, device_allocators[0]);
                 // pending_kernels.push_back(fill_bundles_gpu);
@@ -1177,7 +1213,7 @@ public:
                     return;
                 }
 
-                pending_kernels.push_back(ops);
+                add_pending_kernels(ops);
                 new_columns.push_back(&new_col);
                 break;
             }
@@ -1290,7 +1326,7 @@ public:
                 agg_bundles.push_back(bundle);
             }
 
-            pending_kernels.push_back(agg_bundles);
+            add_pending_kernels(agg_bundles);
 
             auto dependencies = execute_pending_kernels();
             pending_kernels_dependencies_cpu = dependencies.first;
@@ -1484,7 +1520,7 @@ public:
                 agg_bundles.push_back(bundle);
             }
 
-            pending_kernels.push_back(agg_bundles);
+            add_pending_kernels(agg_bundles);
 
             // std::cout << "Executing aggregate kernels" << std::endl;
             auto dependencies = execute_pending_kernels();
@@ -1724,7 +1760,7 @@ public:
                 flags_modified_host,
                 flags_modified_devices
             );
-            pending_kernels.push_back(join_ops);
+            add_pending_kernels(join_ops);
             swap_flag_buffers(join_ops);
 
             for (int i = 0; i < right_table.current_columns.size(); i++)
@@ -1885,7 +1921,7 @@ public:
                 flags_modified_devices
             );
 
-            pending_kernels.push_back(join_ops);
+            add_pending_kernels(join_ops);
             swap_flag_buffers(join_ops);
         }
     }

@@ -35,6 +35,7 @@ std::chrono::duration<double, std::milli> execute_ddor_plan(
     std::vector<int> output_table(result.rels.size(), -1);
     std::vector<TransientTable> transient_tables;
 
+    auto t_tables_start = std::chrono::high_resolution_clock::now();
     for (const RelNode &rel : result.rels)
     {
         if (rel.relOp != RelNodeType::TABLE_SCAN)
@@ -225,6 +226,7 @@ std::chrono::duration<double, std::milli> execute_ddor_plan(
     const std::chrono::duration<double, std::milli> kernel_duration = kernel_end - kernel_start;
     const std::chrono::duration<double, std::milli> duration = kernel_end - load_start;
 
+    g_total_load_ms = load_time.count();
     std::cout << "Engine Breakdown: Load " << load_time.count()
         << " ms, Kernel " << kernel_duration.count() << " ms - " << std::flush;
 

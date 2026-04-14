@@ -498,10 +498,12 @@ public:
             std::cerr << "Segment move_to_device_background: invalid device index " << device_index << std::endl;
             throw std::runtime_error("Segment move_to_device_background: invalid device index");
         }
-        if (on_device && on_device_vec[device_index])
+        if (on_device && on_device_vec[device_index]) {
             return sycl::event();
-        if (background_copy_active[device_index] && !background_copy_activated[device_index])
+        }
+        if (background_copy_active[device_index] && !background_copy_activated[device_index]) {
             return background_copy_events[device_index];
+        }
         if (data_host == nullptr)
             throw std::runtime_error("Segment move_to_device_background: source host buffer is null");
 
