@@ -530,20 +530,24 @@ public:
             bool *final_flags = nullptr;
             int col_len = 0;
 
+            static bool disable_fusion = (std::getenv("SYCLDB_DISABLE_FUSION") != nullptr);
+
             int split_index = 0;
-            for (int i = 0; i < kernels.size(); ++i) {
-                auto op = kernels[i].get_jit_op(i);
-                if (op && i < 8) {
-                    jit_ops.push_back(*op);
-                    kernels[i].setup_jit_ctx(ctx, i);
-                    if (agg_res_ptr == nullptr) agg_res_ptr = kernels[i].get_agg_res_ptr();
-                    if (initial_flags == nullptr) initial_flags = kernels[i].get_input_flags();
-                    final_flags = kernels[i].get_output_flags();
-                    if (col_len == 0) col_len = kernels[i].get_col_len();
-                    split_index = i + 1;
-                } else {
-                    // Stop at first non-JIT capable kernel or if we exceed 8 slots
-                    break;
+            if (!disable_fusion) {
+                for (int i = 0; i < kernels.size(); ++i) {
+                    auto op = kernels[i].get_jit_op(i);
+                    if (op && i < 8) {
+                        jit_ops.push_back(*op);
+                        kernels[i].setup_jit_ctx(ctx, i);
+                        if (agg_res_ptr == nullptr) agg_res_ptr = kernels[i].get_agg_res_ptr();
+                        if (initial_flags == nullptr) initial_flags = kernels[i].get_input_flags();
+                        final_flags = kernels[i].get_output_flags();
+                        if (col_len == 0) col_len = kernels[i].get_col_len();
+                        split_index = i + 1;
+                    } else {
+                        // Stop at first non-JIT capable kernel or if we exceed 8 slots
+                        break;
+                    }
                 }
             }
 
