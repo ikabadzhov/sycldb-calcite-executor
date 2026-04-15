@@ -3,8 +3,8 @@
 #define PERFORMANCE_MEASUREMENT_ACTIVE 1
 #define PERFORMANCE_REPETITIONS 5
 
-#define SIZE_TEMP_MEMORY_GPU (((uint64_t)8) << 30) // 8GB
-#define SIZE_TEMP_MEMORY_CPU (((uint64_t)20) << 30) // 20GB
+#define SIZE_TEMP_MEMORY_GPU (((uint64_t)32) << 30) // 32GB
+#define SIZE_TEMP_MEMORY_CPU (((uint64_t)64) << 30) // 64GB
 
 #define DATA_DIR "/media/ssb/s100_columnar/"
 

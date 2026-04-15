@@ -1,0 +1,213 @@
+Found 6 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    Intel(R) Data Center GPU Flex 170
+Vendor:  Intel(R) Data Center GPU Flex 170
+MemSize (MB): 13535
+Max Compute Units: 512
+Platform: OpenCL (platform 1)
+Backend: OpenCL
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: NVIDIA L40S
+Running on device: AMD Instinct MI210
+Running on device: Intel(R) Data Center GPU Flex 170
+Running on device: NVIDIA L40S
+Running on device: NVIDIA L40S
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (Intel(R) Data Center GPU Flex 170): 0 MB
+Device 2 (NVIDIA L40S): 0 MB
+Device 3 (NVIDIA L40S): 0 MB
+Transport opened successfully.
+Benchmarking queries/transformed/q11.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8698000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8658000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8128000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a80e8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a80a8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8098000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8058000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8018000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a8008000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7fc8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7f88000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7f78000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7f38000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7ef8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7ee8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7ea8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7e68000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7e58000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7e18000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7dd8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7dc8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7d88000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7d48000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7d38000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7cf8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7cb8000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7a7ca8000000)
+Engine Breakdown: Load 23765.7 ms, Kernel 597.472 ms - 
+Final Result: 0
+Repetition 1/5 - 24363.2 ms - 24699.1 ms - JIT: 0.009246 ms, Kernel: 0 ms, Parse: 2.70713 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.159179 ms, Kernel 23.5631 ms - 
+Final Result: 0
+Repetition 2/5 - 23.7223 ms - 28.1557 ms - JIT: 0.00436 ms, Kernel: 0 ms, Parse: 3.78255 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.191795 ms, Kernel 23.5524 ms - 
+Final Result: 0
+Repetition 3/5 - 23.7442 ms - 27.3125 ms - JIT: 0.004773 ms, Kernel: 0 ms, Parse: 3.12907 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.18612 ms, Kernel 23.5641 ms - 
+Final Result: 0
+Repetition 4/5 - 23.7503 ms - 27.9101 ms - JIT: 0.005203 ms, Kernel: 0 ms, Parse: 3.32062 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.234097 ms, Kernel 23.5283 ms - 
+Final Result: 0
+Repetition 5/5 - 23.7624 ms - 28.3286 ms - JIT: 0.004347 ms, Kernel: 0 ms, Parse: 4.03579 ms
+Benchmarking queries/transformed/q12.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 25843.9 ms, Kernel 558.39 ms - 
+Final Result: 0
+Repetition 1/5 - 26402.3 ms - 26449.1 ms - JIT: 0.022211 ms, Kernel: 0 ms, Parse: 6.14202 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.354335 ms, Kernel 23.7001 ms - 
+Final Result: 0
+Repetition 2/5 - 24.0545 ms - 29.7354 ms - JIT: 0.007931 ms, Kernel: 0 ms, Parse: 4.88777 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.308652 ms, Kernel 23.5582 ms - 
+Final Result: 0
+Repetition 3/5 - 23.8669 ms - 28.5567 ms - JIT: 0.008148 ms, Kernel: 0 ms, Parse: 3.97199 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.300523 ms, Kernel 23.5636 ms - 
+Final Result: 0
+Repetition 4/5 - 23.8641 ms - 28.2917 ms - JIT: 0.007601 ms, Kernel: 0 ms, Parse: 3.85641 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.27768 ms, Kernel 23.5634 ms - 
+Final Result: 0
+Repetition 5/5 - 23.8411 ms - 28.2457 ms - JIT: 0.007595 ms, Kernel: 0 ms, Parse: 3.81222 ms
+Benchmarking queries/transformed/q13.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 22736.8 ms, Kernel 371.924 ms - 
+Final Result: 0
+Repetition 1/5 - 23108.7 ms - 23171.6 ms - JIT: 0.011993 ms, Kernel: 0 ms, Parse: 5.22408 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.199127 ms, Kernel 23.5614 ms - 
+Final Result: 0
+Repetition 2/5 - 23.7606 ms - 28.3677 ms - JIT: 0.00464 ms, Kernel: 0 ms, Parse: 4.09946 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.187957 ms, Kernel 23.5636 ms - 
+Final Result: 0
+Repetition 3/5 - 23.7516 ms - 27.7694 ms - JIT: 0.005579 ms, Kernel: 0 ms, Parse: 3.56148 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.187778 ms, Kernel 23.5749 ms - 
+Final Result: 0
+Repetition 4/5 - 23.7627 ms - 27.5007 ms - JIT: 0.006095 ms, Kernel: 0 ms, Parse: 3.23227 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.191902 ms, Kernel 23.5576 ms - 
+Final Result: 0
+Repetition 5/5 - 23.7496 ms - 27.4761 ms - JIT: 0.016841 ms, Kernel: 0 ms, Parse: 3.30478 ms
+Benchmarking queries/transformed/q21.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 7.0018 ms
+[DIAG] CPU Filter Time: 0.9712 ms
+Engine Breakdown: Load 22455.3 ms, Kernel 1922.59 ms - 
+Final Result: 0
+Repetition 1/5 - 24377.9 ms - 24450.2 ms - JIT: 0.007188 ms, Kernel: 594.894 ms, Parse: 15.4568 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 10.2538 ms
+[DIAG] CPU Filter Time: 1.5100 ms
+Engine Breakdown: Load 0.594549 ms, Kernel 377.141 ms - 
+Final Result: 0
+Repetition 2/5 - 377.735 ms - 393.957 ms - JIT: 0.003198 ms, Kernel: 12.0676 ms, Parse: 15.3992 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 6.4661 ms
+[DIAG] CPU Filter Time: 1.4123 ms
+Engine Breakdown: Load 0.393177 ms, Kernel 377.423 ms - 
+Final Result: 0
+Repetition 3/5 - 377.816 ms - 400.659 ms - JIT: 0.002371 ms, Kernel: 8.13677 ms, Parse: 21.3857 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 11.1592 ms
+[DIAG] CPU Filter Time: 2.1425 ms
+Engine Breakdown: Load 0.664115 ms, Kernel 377.175 ms - 
+Final Result: 0
+Repetition 4/5 - 377.839 ms - 394.185 ms - JIT: 0.003472 ms, Kernel: 13.7241 ms, Parse: 15.2981 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 8.3620 ms
+[DIAG] CPU Filter Time: 3.0852 ms
+Engine Breakdown: Load 0.654221 ms, Kernel 377.071 ms - 
+Final Result: 0
+Repetition 5/5 - 377.726 ms - 394.955 ms - JIT: 0.008712 ms, Kernel: 12.3457 ms, Parse: 15.738 ms
+Benchmarking queries/transformed/q22.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[1;31m[AdaptiveCpp Error] [0mfrom /media/ACPP/AdaptiveCpp-25.10.0/src/runtime/cuda/cuda_allocator.cpp:33 @ raw_allocate(): cuda_allocator: cudaMalloc() failed (error code = CUDA:2)
+Memory region failed to allocate memory.
+============== AdaptiveCpp error report ============== 
+AdaptiveCpp has caught the following unhandled asynchronous errors: 
+
+   0. from /media/ACPP/AdaptiveCpp-25.10.0/src/runtime/cuda/cuda_allocator.cpp:33 @ raw_allocate(): cuda_allocator: cudaMalloc() failed (error code = CUDA:2)
+The application will now be terminated.
+terminate called without an active exception

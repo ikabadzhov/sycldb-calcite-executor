@@ -1,0 +1,99 @@
+    void setup_jit_ctx(SYCLDBContext& ctx, int i) const {
+        // Initialize CSE/Register params
+        ctx.params[i*8+5] = -1;
+        ctx.params[i*8+6] = -1;
+        ctx.params[i*8+7] = -1;
+
+        switch (kernel_type)
+        {
+        case KernelType::SelectionKernelColumns:
+        {
+            auto k = static_cast<SelectionKernelColumns *>(kernel_def.get());
+            ctx.col_ptrs[i] = k->operand1;
+            ctx.col_ptrs2[i] = k->operand2;
+            ctx.params[i*8+0] = (int)k->comparison;
+            ctx.params[i*8+1] = (int)k->logic;
+            break;
+        }
+        case KernelType::SelectionKernelLiteral:
+        {
+            auto k = static_cast<SelectionKernelLiteral *>(kernel_def.get());
+            ctx.col_ptrs[i] = k->operand1;
+            ctx.values[i] = k->value;
+            ctx.params[i*8+0] = (int)k->comparison;
+            ctx.params[i*8+1] = (int)k->logic;
+            break;
+        }
+        case KernelType::PerformOperationKernelColumns:
+        {
+            auto k = static_cast<PerformOperationKernelColumns *>(kernel_def.get());
+            ctx.res_ptrs[i] = k->result;
+            ctx.col_ptrs[i] = k->col1;
+            ctx.col_ptrs2[i] = k->col2;
+            ctx.params[i*8+2] = (int)k->op_enum;
+            break;
+        }
+        case KernelType::PerformOperationKernelLiteralFirst:
+        {
+            auto k = static_cast<PerformOperationKernelLiteralFirst *>(kernel_def.get());
+            ctx.res_ptrs[i] = k->result;
+            ctx.values[i] = k->literal;
+            ctx.col_ptrs[i] = k->col;
+            ctx.params[i*8+2] = (int)k->op_enum;
+            break;
+        }
+        case KernelType::PerformOperationKernelLiteralSecond:
+        {
+            auto k = static_cast<PerformOperationKernelLiteralSecond *>(kernel_def.get());
+            ctx.res_ptrs[i] = k->result;
+            ctx.col_ptrs[i] = k->col;
+            ctx.values[i] = k->literal;
+            ctx.params[i*8+2] = (int)k->op_enum;
+            break;
+        }
+        case KernelType::FilterJoinKernel:
+        {
+            auto k = static_cast<FilterJoinKernel *>(kernel_def.get());
+            ctx.col_ptrs[i] = k->probe_col;
+            ctx.ht_ptrs[i] = k->build_ht;
+            ctx.params[i*8+3] = k->build_min_value;
+            ctx.params[i*8+4] = k->build_max_value;
+            ctx.params[i*8+5] = (int)k->ht_len;
+            break;
+        }
+        case KernelType::FullJoinKernel:
+        {
+            auto k = static_cast<FullJoinKernel *>(kernel_def.get());
+            ctx.col_ptrs[i] = k->probe_col;
+            ctx.res_ptrs[i] = k->probe_val_out;
+            ctx.ht_int_ptrs[i] = k->ht;
+            ctx.params[i*8+3] = k->ht_min_value;
+            ctx.params[i*8+4] = k->ht_max_value;
+            ctx.params[i*8+5] = (int)k->ht_len;
+            break;
+        }
+        case KernelType::AggregateOperationKernel:
+        {
+            auto k = static_cast<AggregateOperationKernel *>(kernel_def.get());
+            ctx.col_ptrs[i] = k->data;
+            break;
+        }
+        default: break;
+        }
+
+        // CSE Pass: Detect redundant loads across slots
+        for (int prev = 0; prev < i; prev++) {
+            if (ctx.col_ptrs[i] != nullptr && ctx.col_ptrs[i] == ctx.col_ptrs[prev]) {
+                ctx.params[prev*8+7] = prev; 
+                ctx.params[i*8+6] = prev;    
+                break;
+            }
+        }
+        for (int prev = 0; prev < i; prev++) {
+            if (ctx.col_ptrs2[i] != nullptr && ctx.col_ptrs2[i] == ctx.col_ptrs[prev]) {
+                ctx.params[prev*8+7] = prev;
+                ctx.params[i*8+5] = prev;
+                break;
+            }
+        }
+    }

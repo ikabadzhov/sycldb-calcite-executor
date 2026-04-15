@@ -1,0 +1,129 @@
+Found 6 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    Intel(R) Data Center GPU Flex 170
+Vendor:  Intel(R) Data Center GPU Flex 170
+MemSize (MB): 13535
+Max Compute Units: 512
+Platform: OpenCL (platform 1)
+Backend: OpenCL
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: NVIDIA L40S
+Running on device: AMD Instinct MI210
+Running on device: Intel(R) Data Center GPU Flex 170
+Running on device: NVIDIA L40S
+Running on device: NVIDIA L40S
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (Intel(R) Data Center GPU Flex 170): 0 MB
+Device 2 (NVIDIA L40S): 0 MB
+Device 3 (NVIDIA L40S): 0 MB
+Transport opened successfully.
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x712cbc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x712c7c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71274c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71270c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7126cc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7126bc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71267c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71263c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71262c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7125ec000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7125ac000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71259c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71255c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71251c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71250c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7124cc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71248c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71247c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71243c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7123fc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7123ec000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7123ac000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71236c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71235c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x71231c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7122dc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7122cc000000)
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Engine Breakdown: Load 22272.7 ms, Kernel 380.595 ms - 
+Final Result: 0
+Repetition 1/5 - 22653.3 ms - 22713.3 ms - JIT: 0.011336 ms, Kernel: 0 ms, Parse: 4.34015 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.197892 ms, Kernel 23.5901 ms - 
+Final Result: 0
+Repetition 2/5 - 23.7881 ms - 28.5266 ms - JIT: 0.004273 ms, Kernel: 0 ms, Parse: 4.23514 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.182788 ms, Kernel 23.5869 ms - 
+Final Result: 0
+Repetition 3/5 - 23.7698 ms - 27.4946 ms - JIT: 0.004058 ms, Kernel: 0 ms, Parse: 3.30576 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.17258 ms, Kernel 23.6009 ms - 
+Final Result: 0
+Repetition 4/5 - 23.7735 ms - 27.4199 ms - JIT: 0.003853 ms, Kernel: 0 ms, Parse: 3.24371 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.182928 ms, Kernel 23.5912 ms - 
+Final Result: 0
+Repetition 5/5 - 23.7742 ms - 27.5438 ms - JIT: 0.003346 ms, Kernel: 0 ms, Parse: 3.24018 ms

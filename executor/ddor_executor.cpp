@@ -33,6 +33,18 @@ std::chrono::duration<double, std::milli> execute_ddor_plan(
 
     const ExecutionInfo exec_info = parse_execution_info(result);
     std::vector<int> output_table(result.rels.size(), -1);
+
+    if (primary_device_index >= 0) {
+        bool cpu_prefilter = getenv("SYCLDB_CPU_PREFILTER") != nullptr;
+        for (Table &table : tables) {
+            // If CPU prefilter is requested, keep dimension tables (< 20M rows) on host
+            if (cpu_prefilter && table.get_nrows() < 20000000) {
+                continue;
+            }
+            table.move_all_to_device(primary_device_index);
+        }
+    }
+
     std::vector<TransientTable> transient_tables;
 
     auto t_tables_start = std::chrono::high_resolution_clock::now();
@@ -236,6 +248,17 @@ std::chrono::duration<double, std::milli> execute_ddor_plan(
 
     #if PERFORMANCE_MEASUREMENT_ACTIVE
     perf_out << duration.count() << '\n';
+    TransientTable &final_table = transient_tables[output_table[result.rels.size() - 1]];
+    if (final_table.get_nrows() > 0 && final_table.get_columns().size() > 0) {
+        Column *col = final_table.get_columns()[0];
+        if (col != nullptr) {
+            if (col->get_is_aggregate_result()) {
+                std::cout << "\nFinal Result: " << col->get_aggregate_value(0) << std::endl;
+            } else {
+                std::cout << "\nFinal Result (First Row): " << (*col)[0] << std::endl;
+            }
+        }
+    }
     #else
     TransientTable &final_table = transient_tables[output_table[result.rels.size() - 1]];
     save_result(final_table, query_path, cpu_allocator, device_allocators);

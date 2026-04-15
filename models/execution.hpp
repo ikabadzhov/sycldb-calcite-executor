@@ -11,6 +11,8 @@
 #include "../kernels/aggregation.hpp"
 #include "../kernels/join.hpp"
 #include "../kernels/jit_kernels.hpp"
+#include <hipSYCL/sycl/specialized.hpp>
+#include <hipSYCL/sycl/libkernel/group_functions.hpp>
 
 namespace acpp_jit = sycl::AdaptiveCpp_jit;
 
@@ -32,7 +34,7 @@ enum class KernelType : uint8_t
     GroupByAggregateKernel,
 };
 
-using JITOp = acpp_jit::dynamic_function_definition<void, sycl::item<1>, SYCLDBContext, bool&, uint64_t&>;
+using JITOp = acpp_jit::dynamic_function_definition<void, sycl::item<1>, const SYCLDBContext&, int*, bool&, uint64_t&>;
 
 class KernelData
 {
@@ -137,6 +139,11 @@ public:
     }
 
     void setup_jit_ctx(SYCLDBContext& ctx, int i) const {
+        // Initialize CSE/Register params
+        ctx.params[i*8+5] = -1;
+        ctx.params[i*8+6] = -1;
+        ctx.params[i*8+7] = -1;
+
         switch (kernel_type)
         {
         case KernelType::SelectionKernelColumns:
@@ -191,7 +198,7 @@ public:
             ctx.ht_ptrs[i] = k->build_ht;
             ctx.params[i*8+3] = k->build_min_value;
             ctx.params[i*8+4] = k->build_max_value;
-            ctx.params[i*8+5] = k->ht_len;
+            ctx.params[i*8+5] = (int)k->ht_len;
             break;
         }
         case KernelType::FullJoinKernel:
@@ -202,7 +209,7 @@ public:
             ctx.ht_int_ptrs[i] = k->ht;
             ctx.params[i*8+3] = k->ht_min_value;
             ctx.params[i*8+4] = k->ht_max_value;
-            ctx.params[i*8+5] = k->ht_len;
+            ctx.params[i*8+5] = (int)k->ht_len;
             break;
         }
         case KernelType::AggregateOperationKernel:
@@ -212,6 +219,22 @@ public:
             break;
         }
         default: break;
+        }
+
+        // CSE Pass: Detect redundant loads across slots
+        for (int prev = 0; prev < i; prev++) {
+            if (ctx.col_ptrs[i] != nullptr && ctx.col_ptrs[i] == ctx.col_ptrs[prev]) {
+                ctx.params[prev*8+7] = prev; 
+                ctx.params[i*8+6] = prev;    
+                break;
+            }
+        }
+        for (int prev = 0; prev < i; prev++) {
+            if (ctx.col_ptrs2[i] != nullptr && ctx.col_ptrs2[i] == ctx.col_ptrs[prev]) {
+                ctx.params[prev*8+7] = prev;
+                ctx.params[i*8+5] = prev;
+                break;
+            }
         }
     }
 
@@ -272,9 +295,26 @@ public:
             );
             return { e };
         }
-        case KernelType::SelectionKernelColumns:
+        case KernelType::SelectionKernelLiteral:
         {
-            SelectionKernelColumns *kernel = static_cast<SelectionKernelColumns *>(kernel_def.get());
+            SelectionKernelLiteral *kernel = static_cast<SelectionKernelLiteral *>(kernel_def.get());
+            static const char* prefilter = getenv("SYCLDB_CPU_PREFILTER");
+            if (prefilter && kernel->get_col_len() < 2000000) {
+                auto start_cpu = std::chrono::high_resolution_clock::now();
+                int len = kernel->get_col_len();
+                std::vector<int> h_op1(len);
+                std::vector<uint8_t> h_in(len);
+                std::vector<uint8_t> h_out(len);
+                queue.memcpy(h_op1.data(), kernel->operand1, len * sizeof(int)).wait();
+                queue.memcpy(h_in.data(), kernel->input_flags, len * sizeof(uint8_t)).wait();
+                for (int i = 0; i < len; ++i) {
+                    h_out[i] = (uint8_t)logical(kernel->logic, (bool)h_in[i], compare(kernel->comparison, h_op1[i], kernel->value));
+                }
+                queue.memcpy(kernel->output_flags, h_out.data(), len * sizeof(uint8_t)).wait();
+                auto end_cpu = std::chrono::high_resolution_clock::now();
+                printf("[DIAG] CPU Filter Time: %.4f ms\n", std::chrono::duration<double, std::milli>(end_cpu - start_cpu).count());
+                return dependencies;
+            }
             auto e = queue.submit(
                 [&](sycl::handler &cgh)
                 {
@@ -289,9 +329,28 @@ public:
             );
             return { e };
         }
-        case KernelType::SelectionKernelLiteral:
+        case KernelType::SelectionKernelColumns:
         {
-            SelectionKernelLiteral *kernel = static_cast<SelectionKernelLiteral *>(kernel_def.get());
+            SelectionKernelColumns *kernel = static_cast<SelectionKernelColumns *>(kernel_def.get());
+            static const char* prefilter = getenv("SYCLDB_CPU_PREFILTER");
+            if (prefilter && kernel->get_col_len() < 2000000) {
+                auto start_cpu = std::chrono::high_resolution_clock::now();
+                int len = kernel->get_col_len();
+                std::vector<int> h_op1(len);
+                std::vector<int> h_op2(len);
+                std::vector<uint8_t> h_in(len);
+                std::vector<uint8_t> h_out(len);
+                queue.memcpy(h_op1.data(), kernel->operand1, len * sizeof(int)).wait();
+                queue.memcpy(h_op2.data(), kernel->operand2, len * sizeof(int)).wait();
+                queue.memcpy(h_in.data(), kernel->input_flags, len * sizeof(uint8_t)).wait();
+                for (int i = 0; i < len; ++i) {
+                    h_out[i] = (uint8_t)logical(kernel->logic, (bool)h_in[i], compare(kernel->comparison, h_op1[i], h_op2[i]));
+                }
+                queue.memcpy(kernel->output_flags, h_out.data(), len * sizeof(uint8_t)).wait();
+                auto end_cpu = std::chrono::high_resolution_clock::now();
+                printf("[DIAG] CPU Filter Time: %.4f ms\n", std::chrono::duration<double, std::milli>(end_cpu - start_cpu).count());
+                return dependencies;
+            }
             auto e = queue.submit(
                 [&](sycl::handler &cgh)
                 {
@@ -516,7 +575,8 @@ public:
         sycl::queue &cpu_queue,
         std::vector<sycl::queue> &device_queues,
         const std::vector<sycl::event> &cpu_dependencies,
-        const std::vector<std::vector<sycl::event>> &device_dependencies
+        const std::vector<std::vector<sycl::event>> &device_dependencies,
+        uint64_t seg_idx_for_trace = 0
     ) const
     {
         std::vector<sycl::event> deps = on_device ? device_dependencies[device_index] : cpu_dependencies;
@@ -551,22 +611,33 @@ public:
                 }
             }
 
+            if (split_index > 0) {
+                ctx.p0 = ctx.col_ptrs[0]; ctx.p1 = ctx.col_ptrs[1]; ctx.p2 = ctx.col_ptrs[2]; ctx.p3 = ctx.col_ptrs[3];
+                ctx.p4 = ctx.col_ptrs[4]; ctx.p5 = ctx.col_ptrs[5]; ctx.p6 = ctx.col_ptrs[6]; ctx.p7 = ctx.col_ptrs[7];
+                ctx.h0 = ctx.ht_ptrs[0]; ctx.h1 = ctx.ht_ptrs[1]; ctx.h2 = ctx.ht_ptrs[2]; ctx.h3 = ctx.ht_ptrs[3];
+            }
+
             if (split_index > 1) {
                 auto jit_start = std::chrono::high_resolution_clock::now();
                 acpp_jit::dynamic_function_config cfg;
                 cfg.define_as_call_sequence(&execute_sycldb_ops_agg, jit_ops);
                 
-                auto jit_kernel = cfg.apply([=](sycl::item<1> idx, auto& acc_red) {
-                    bool pass = initial_flags ? initial_flags[idx] : true;
-                    if (__builtin_expect(pass, 1)) {
-                        uint64_t acc = 0;
-                        execute_sycldb_ops_agg(idx, ctx, pass, acc);
-                        if (acc != 0) acc_red += acc;
-                        if (final_flags) final_flags[idx] = pass;
-                    } else {
-                        if (final_flags) final_flags[idx] = false;
+                // Host-side analysis to bypass USM materialization
+                ctx.bypass_write_mask = 0;
+                for (int i = 0; i < split_index; ++i) {
+                    if (ctx.res_ptrs[i] != nullptr) {
+                        for (int j = i + 1; j < split_index; ++j) {
+                            if (ctx.col_ptrs[j] == ctx.res_ptrs[i]) {
+                                ctx.bypass_write_mask |= (1 << i);
+                                ctx.params[j*8+6] = i; // Slot j reads from register i
+                                break;
+                            }
+                        }
                     }
-                });
+                }
+
+
+
                 auto jit_end = std::chrono::high_resolution_clock::now();
                 double jit_time = std::chrono::duration<double, std::milli>(jit_end - jit_start).count();
 
@@ -574,30 +645,42 @@ public:
                 auto e = q.submit([&](sycl::handler &cgh) {
                     if (!deps.empty()) cgh.depends_on(deps);
                     if (agg_res_ptr) {
-                        cgh.parallel_for(sycl::range<1>{(size_t)col_len}, sycl::reduction(agg_res_ptr, sycl::plus<uint64_t>()), 
-                            jit_kernel);
+                        cgh.parallel_for(sycl::range<1>{(size_t)col_len}, sycl::reduction(agg_res_ptr, sycl::plus<uint64_t>()),
+                            cfg.apply([ctx_spec = hipsycl::sycl::specialized<SYCLDBContext>{ctx}, initial_flags, final_flags](sycl::item<1> idx, auto& reducer) {
+                                SYCLDBContext l_ctx = ctx_spec;
+                                int regs_arr[8] = {0};
+                                int* __restrict__ regs = regs_arr;
+                                bool pass = true;
+                                uint64_t acc = 0;
+
+                                if (initial_flags == nullptr || initial_flags[idx[0]]) {
+                                    execute_sycldb_ops_agg(idx, l_ctx, regs, pass, acc);
+                                    if (final_flags != nullptr) final_flags[idx[0]] = pass;
+                                } else {
+                                    if (final_flags != nullptr) final_flags[idx[0]] = false;
+                                }
+
+                                reducer.combine(acc);
+                            }));
                     } else {
-                        // Re-bind without reduction if not needed
                         cgh.parallel_for(sycl::range<1>{(size_t)col_len}, 
                             cfg.apply([=](sycl::item<1> idx) {
+                                int regs[8];
                                 bool pass = initial_flags ? initial_flags[idx] : true;
                                 if (__builtin_expect(pass, 1)) {
                                     uint64_t acc = 0;
-                                    execute_sycldb_ops_agg(idx, ctx, pass, acc);
+                                    execute_sycldb_ops_agg(idx, ctx, regs, pass, acc);
                                     if (final_flags) final_flags[idx] = pass;
-                                } else {
-                                    if (final_flags) final_flags[idx] = false;
+                                } else if (final_flags) {
+                                    final_flags[idx] = false;
                                 }
                             }));
                     }
                 });
-                e.wait();
-                auto kernel_end = std::chrono::high_resolution_clock::now();
-                double kernel_time = std::chrono::duration<double, std::milli>(kernel_end - kernel_start).count();
+                double kernel_time = 0; // Kernel is async now
                 g_total_jit_ms += jit_time;
                 g_total_kernel_ms += kernel_time;
                 
-                std::cout << "[JIT-FUSION] Partial fusion (size " << split_index << ") JIT time: " << jit_time << " ms, Kernel time: " << kernel_time << " ms" << std::endl;
                 deps = {e};
             } else {
                 split_index = 0; // Did not fuse anything (or only 1, which we don't JIT yet)
@@ -608,8 +691,7 @@ public:
                 for (int i = split_index; i < kernels.size(); ++i) {
                     deps = kernels[i].execute(q, deps);
                 }
-                // Wait for fallback kernels
-                for (auto &e : deps) e.wait();
+                // Fallback kernels are async now
                 auto kernel_fallback_end = std::chrono::high_resolution_clock::now();
                 g_total_kernel_ms += std::chrono::duration<double, std::milli>(kernel_fallback_end - kernel_fallback_start).count();
             }

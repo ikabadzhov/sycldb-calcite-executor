@@ -1,0 +1,113 @@
+Found 6 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    Intel(R) Data Center GPU Flex 170
+Vendor:  Intel(R) Data Center GPU Flex 170
+MemSize (MB): 13535
+Max Compute Units: 512
+Platform: OpenCL (platform 1)
+Backend: OpenCL
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: NVIDIA L40S
+Running on device: AMD Instinct MI210
+Running on device: Intel(R) Data Center GPU Flex 170
+Running on device: NVIDIA L40S
+Running on device: NVIDIA L40S
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (Intel(R) Data Center GPU Flex 170): 0 MB
+Device 2 (NVIDIA L40S): 0 MB
+Device 3 (NVIDIA L40S): 0 MB
+Transport opened successfully.
+Benchmarking queries/transformed/q11.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fe134000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fe0f4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdbc4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdb84000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdb44000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdb34000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdaf4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdab4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fdaa4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fda64000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fda24000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fda14000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd9d4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd994000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd984000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd944000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd904000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd8f4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd8b4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd874000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd864000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd824000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd7e4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd7d4000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd794000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd754000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x7fd744000000)
+[1;31m[AdaptiveCpp Error] [0mfrom /media/ACPP/AdaptiveCpp-25.10.0/src/runtime/cuda/cuda_allocator.cpp:33 @ raw_allocate(): cuda_allocator: cudaMalloc() failed (error code = CUDA:2)
+Memory region failed to allocate memory.

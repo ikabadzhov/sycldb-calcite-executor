@@ -8,12 +8,13 @@ extern "C" {
                 bool p = false;
                 uint64_t a = 0;
                 SYCLDBContext c;
-                selection_literal_jit_0(idx, c, p, a);
-                selection_columns_jit_0(idx, c, p, a);
-                perform_op_columns_jit_0(idx, c, p, a);
-                filter_join_jit_0(idx, c, p, a);
-                full_join_jit_0(idx, c, p, a);
-                aggregate_jit_0(idx, c, p, a);
+                int* r = nullptr;
+                selection_literal_jit_0(idx, c, r, p, a);
+                selection_columns_jit_0(idx, c, r, p, a);
+                perform_op_columns_jit_0(idx, c, r, p, a);
+                filter_join_jit_0(idx, c, r, p, a);
+                full_join_jit_0(idx, c, r, p, a);
+                aggregate_jit_0(idx, c, r, p, a);
             });
         });
     }

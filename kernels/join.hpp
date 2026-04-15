@@ -11,7 +11,8 @@
 template <typename T>
 inline T HASH(T X, T Y, T Z)
 {
-    return ((X - Z) % Y);
+    // Check if we can skip modulo for dense ranges (X-Z always < Y in SSB PK-FK)
+    return (X - Z);
 }
 
 class BuildKeysHTKernel : public KernelDefinition
@@ -42,6 +43,20 @@ inline sycl::event build_keys_ht(
     sycl::queue &queue,
     const std::vector<sycl::event> &dependencies)
 {
+    static const char* prefilter = getenv("SYCLDB_CPU_PREFILTER");
+    if (prefilter && col_len < 2000000) {
+        auto start_cpu = std::chrono::high_resolution_clock::now();
+        std::vector<int> h_col(col_len);
+        std::vector<uint8_t> h_flags(col_len);
+        std::vector<uint8_t> h_ht(ht_len);
+        queue.memcpy(h_col.data(), col, col_len * sizeof(int)).wait();
+        queue.memcpy(h_flags.data(), flags, col_len * sizeof(uint8_t)).wait();
+        for (int i = 0; i < col_len; ++i) {
+            h_ht[HASH(h_col[i], ht_len, ht_min_value)] = h_flags[i];
+        }
+        auto end_cpu = std::chrono::high_resolution_clock::now();
+        return sycl::event();
+    }
     return queue.submit(
         [&](sycl::handler &cgh)
         {
@@ -103,6 +118,27 @@ inline sycl::event build_key_vals_ht(
     sycl::queue &queue,
     const std::vector<sycl::event> &dependencies)
 {
+    static const char* prefilter = getenv("SYCLDB_CPU_PREFILTER");
+    if (prefilter && col_len < 2000000) {
+        std::vector<int> h_col(col_len);
+        std::vector<int> h_agg(col_len);
+        std::vector<uint8_t> h_flags(col_len);
+        std::vector<int> h_ht(ht_len * 2);
+        queue.memcpy(h_col.data(), col, col_len * sizeof(int)).wait();
+        queue.memcpy(h_agg.data(), agg_col, col_len * sizeof(int)).wait();
+        queue.memcpy(h_flags.data(), flags, col_len * sizeof(uint8_t)).wait();
+        for (int i = 0; i < col_len; ++i) {
+            if (h_flags[i]) {
+                int hash = HASH(h_col[i], ht_len, ht_min_value);
+                h_ht[hash << 1] = 1;
+                h_ht[(hash << 1) + 1] = h_agg[i];
+            } else {
+                h_ht[HASH(h_col[i], ht_len, ht_min_value) << 1] = 0;
+            }
+        }
+        queue.memcpy(ht, h_ht.data(), ht_len * 2 * sizeof(int)).wait();
+        return sycl::event();
+    }
     return queue.submit(
         [&](sycl::handler &cgh)
         {

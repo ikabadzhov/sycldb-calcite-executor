@@ -478,6 +478,8 @@ public:
 
         on_device = true;
         on_device_vec[device_index] = true;
+        std::string dname = device_queues[device_index].get_device().get_info<sycl::info::device::name>();
+        printf("[RESIDENCY] Moving segment to device %d (%s) (ptr: %p)\n", device_index, dname.c_str(), (void*)device_ptrs[device_index]);
         return copy_queue.memcpy(device_ptrs[device_index], data_host, nrows * sizeof(int));
     }
 
@@ -1349,13 +1351,20 @@ public:
             seg.promote_background_buffer(device_index);
     }
 
-    void move_to_device(int device_index, const std::vector<bool> &segments_choices = {})
+    std::vector<sycl::event> move_to_device_events(int device_index, const std::vector<bool> &segments_choices = {})
     {
+        std::vector<sycl::event> events;
         for (int i = 0; i < segments.size(); i++)
         {
             if (segments_choices.size() <= i || segments_choices[i])
-                segments[i].move_to_device(device_index);
+                events.push_back(segments[i].move_to_device(device_index));
         }
+        return events;
+    }
+
+    void move_to_device(int device_index, const std::vector<bool> &segments_choices = {})
+    {
+        move_to_device_events(device_index, segments_choices);
     }
 
     void move_to_device(int device_index, sycl::queue &copy_queue, const std::vector<bool> &segments_choices = {})
@@ -1418,6 +1427,11 @@ public:
         auto min_max = get_min_max();
         int min_value = min_max.first;
         int max_value = min_max.second;
+
+        // Dense optimization: if min is small, start from 0 to avoid subtraction in JIT
+        if (min_value > 0 && min_value < 100) {
+            min_value = 0;
+        }
 
         int ht_len = max_value - min_value + 1;
 
@@ -1519,6 +1533,11 @@ public:
         auto min_max = get_min_max();
         int min_value = min_max.first;
         int max_value = min_max.second;
+
+        // Dense optimization: if min is small, start from 0 to avoid subtraction in JIT
+        if (min_value > 0 && min_value < 100) {
+            min_value = 0;
+        }
 
         int ht_len = max_value - min_value + 1;
 
@@ -1727,8 +1746,13 @@ public:
 
     void move_all_to_device(int device_index)
     {
-        for (auto &col : columns)
-            col.move_all_to_device(device_index);
+        printf("[DEBUG] Moving table %s to device %d (%lu columns)\n", table_name.c_str(), device_index, columns.size());
+        std::vector<sycl::event> events;
+        for (size_t i = 0; i < columns.size(); i++) {
+            auto column_events = columns[i].move_to_device_events(device_index);
+            events.insert(events.end(), column_events.begin(), column_events.end());
+        }
+        sycl::event::wait(events);
     }
 
     void move_all_to_device(int device_index, sycl::queue &copy_queue)

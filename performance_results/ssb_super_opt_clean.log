@@ -1,0 +1,442 @@
+Found 6 execution device(s):
+---------------------------------
+Name:    AMD Instinct MI210
+Vendor:  AMD
+MemSize (MB): 65520
+Max Compute Units: 104
+Platform: HIP (platform 0)
+Backend: HIP
+---------------------------------
+Name:    Intel(R) Data Center GPU Flex 170
+Vendor:  Intel(R) Data Center GPU Flex 170
+MemSize (MB): 13535
+Max Compute Units: 512
+Platform: OpenCL (platform 1)
+Backend: OpenCL
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+Name:    NVIDIA L40S
+Vendor:  NVIDIA
+MemSize (MB): 45468
+Max Compute Units: 142
+Platform: CUDA (platform 0)
+Backend: CUDA
+---------------------------------
+[;35m[AdaptiveCpp Warning] [0mkernel_cache: This application run has resulted in new binaries being JIT-compiled. This indicates that the runtime optimization process has not yet reached peak performance. You may want to run the application again until this warning no longer appears to achieve optimal performance.
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Warning: Empty column created
+Running on CPU: NVIDIA L40S
+Running on device: AMD Instinct MI210
+Running on device: Intel(R) Data Center GPU Flex 170
+Running on device: NVIDIA L40S
+Running on device: NVIDIA L40S
+part num segments: 1
+supplier num segments: 1
+customer num segments: 1
+ddate num segments: 1
+lineorder num segments: 3
+Total memory used by tables:
+CPU: 20671 MB
+Device 0 (AMD Instinct MI210): 0 MB
+Device 1 (Intel(R) Data Center GPU Flex 170): 0 MB
+Device 2 (NVIDIA L40S): 0 MB
+Device 3 (NVIDIA L40S): 0 MB
+Transport opened successfully.
+Benchmarking queries/transformed/q11.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70df6c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70df2c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d9fc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d9bc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d97c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d96c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d92c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d8ec000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d8dc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d89c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d85c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d84c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d80c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d7cc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d7bc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d77c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d73c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d72c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d6ec000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d6ac000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d69c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d65c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d61c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d60c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d5cc000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d58c000000)
+[RESIDENCY] Moving segment to device 2 (NVIDIA L40S) (ptr: 0x70d57c000000)
+Engine Breakdown: Load 25800.1 ms, Kernel 592.345 ms - 
+Final Result: 0
+Repetition 1/5 - 26392.4 ms - 26740.7 ms - JIT: 0.008487 ms, Kernel: 0 ms, Parse: 4.4595 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.696111 ms, Kernel 23.4242 ms - 
+Final Result: 0
+Repetition 2/5 - 24.1204 ms - 30.286 ms - JIT: 0.008403 ms, Kernel: 0 ms, Parse: 4.66812 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.268381 ms, Kernel 23.5249 ms - 
+Final Result: 0
+Repetition 3/5 - 23.7933 ms - 28.5793 ms - JIT: 0.008046 ms, Kernel: 0 ms, Parse: 4.17464 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.243623 ms, Kernel 23.5277 ms - 
+Final Result: 0
+Repetition 4/5 - 23.7714 ms - 27.9822 ms - JIT: 0.006241 ms, Kernel: 0 ms, Parse: 3.67946 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.546608 ms, Kernel 23.3117 ms - 
+Final Result: 0
+Repetition 5/5 - 23.8583 ms - 28.8875 ms - JIT: 0.006241 ms, Kernel: 0 ms, Parse: 3.7797 ms
+Benchmarking queries/transformed/q12.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 24325.1 ms, Kernel 576.846 ms - 
+Final Result: 0
+Repetition 1/5 - 24902 ms - 24936.1 ms - JIT: 0.022022 ms, Kernel: 0 ms, Parse: 5.01468 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.357178 ms, Kernel 24.1408 ms - 
+Final Result: 0
+Repetition 2/5 - 24.498 ms - 30.2646 ms - JIT: 0.009262 ms, Kernel: 0 ms, Parse: 5.05343 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.578429 ms, Kernel 23.4938 ms - 
+Final Result: 0
+Repetition 3/5 - 24.0722 ms - 30.866 ms - JIT: 0.014269 ms, Kernel: 0 ms, Parse: 5.73369 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.400368 ms, Kernel 23.4873 ms - 
+Final Result: 0
+Repetition 4/5 - 23.8877 ms - 28.8972 ms - JIT: 0.008031 ms, Kernel: 0 ms, Parse: 4.28199 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.326911 ms, Kernel 23.5807 ms - 
+Final Result: 0
+Repetition 5/5 - 23.9076 ms - 28.7897 ms - JIT: 0.008221 ms, Kernel: 0 ms, Parse: 4.12079 ms
+Benchmarking queries/transformed/q13.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 22246.7 ms, Kernel 366.008 ms - 
+Final Result: 0
+Repetition 1/5 - 22612.7 ms - 22668.6 ms - JIT: 0.016822 ms, Kernel: 0 ms, Parse: 6.24249 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.199711 ms, Kernel 23.5752 ms - 
+Final Result: 0
+Repetition 2/5 - 23.775 ms - 28.3836 ms - JIT: 0.005299 ms, Kernel: 0 ms, Parse: 4.10616 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.204149 ms, Kernel 23.5567 ms - 
+Final Result: 0
+Repetition 3/5 - 23.7609 ms - 28.1868 ms - JIT: 0.003547 ms, Kernel: 0 ms, Parse: 3.50948 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.280272 ms, Kernel 23.5615 ms - 
+Final Result: 0
+Repetition 4/5 - 23.8418 ms - 27.7433 ms - JIT: 0.008196 ms, Kernel: 0 ms, Parse: 3.4501 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.351761 ms, Kernel 23.4848 ms - 
+Final Result: 0
+Repetition 5/5 - 23.8366 ms - 29.2305 ms - JIT: 0.008958 ms, Kernel: 0 ms, Parse: 4.14143 ms
+Benchmarking queries/transformed/q21.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 6.3225 ms
+[DIAG] CPU Filter Time: 0.8735 ms
+Engine Breakdown: Load 22824.6 ms, Kernel 1948.75 ms - 
+Final Result: 0
+Repetition 1/5 - 24773.3 ms - 24866.9 ms - JIT: 0.005919 ms, Kernel: 606.894 ms, Parse: 16.6364 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 12.2313 ms
+[DIAG] CPU Filter Time: 1.7140 ms
+Engine Breakdown: Load 1.52126 ms, Kernel 377.578 ms - 
+Final Result: 0
+Repetition 2/5 - 379.099 ms - 396.936 ms - JIT: 0.003782 ms, Kernel: 14.3731 ms, Parse: 16.7302 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 12.4856 ms
+[DIAG] CPU Filter Time: 1.8945 ms
+Engine Breakdown: Load 0.934798 ms, Kernel 377.458 ms - 
+Final Result: 0
+Repetition 3/5 - 378.393 ms - 1883.99 ms - JIT: 0.004372 ms, Kernel: 14.8522 ms, Parse: 17.0771 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 11.7435 ms
+[DIAG] CPU Filter Time: 2.2510 ms
+Engine Breakdown: Load 1.15807 ms, Kernel 377.832 ms - 
+Final Result: 0
+Repetition 4/5 - 378.99 ms - 399.263 ms - JIT: 0.005231 ms, Kernel: 14.4688 ms, Parse: 18.2374 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 13.3225 ms
+[DIAG] CPU Filter Time: 2.6700 ms
+Engine Breakdown: Load 0.944501 ms, Kernel 378.025 ms - 
+Final Result: 0
+Repetition 5/5 - 378.969 ms - 397.085 ms - JIT: 0.006021 ms, Kernel: 16.5727 ms, Parse: 16.9256 ms
+Benchmarking queries/transformed/q22.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.7491 ms
+Engine Breakdown: Load 24321.1 ms, Kernel 1556.6 ms - 
+Final Result: 0
+Repetition 1/5 - 25877.7 ms - 25906.8 ms - JIT: 0.009973 ms, Kernel: 103.116 ms, Parse: 27.83 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.7709 ms
+Engine Breakdown: Load 0.447459 ms, Kernel 378.023 ms - 
+Final Result: 0
+Repetition 2/5 - 378.47 ms - 395.531 ms - JIT: 0.004474 ms, Kernel: 2.04081 ms, Parse: 16.0333 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.1376 ms
+Engine Breakdown: Load 1.43327 ms, Kernel 376.872 ms - 
+Final Result: 0
+Repetition 3/5 - 378.306 ms - 408.906 ms - JIT: 0.008921 ms, Kernel: 2.54185 ms, Parse: 17.1444 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.9226 ms
+Engine Breakdown: Load 0.763798 ms, Kernel 378.153 ms - 
+Final Result: 0
+Repetition 4/5 - 378.917 ms - 396.082 ms - JIT: 0.006796 ms, Kernel: 2.54325 ms, Parse: 16.1963 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.6667 ms
+Engine Breakdown: Load 0.519355 ms, Kernel 377.327 ms - 
+Final Result: 0
+Repetition 5/5 - 377.846 ms - 395.03 ms - JIT: 0.006184 ms, Kernel: 2.03329 ms, Parse: 16.301 ms
+Benchmarking queries/transformed/q23.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 8.8924 ms
+[DIAG] CPU Filter Time: 0.7661 ms
+Engine Breakdown: Load 23277.2 ms, Kernel 2657.4 ms - 
+Final Result: 0
+Repetition 1/5 - 25934.6 ms - 26005.5 ms - JIT: 0.011103 ms, Kernel: 914.954 ms, Parse: 23.9216 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 12.2045 ms
+[DIAG] CPU Filter Time: 1.8612 ms
+Engine Breakdown: Load 0.696312 ms, Kernel 1220.2 ms - 
+Final Result: 0
+Repetition 2/5 - 1220.9 ms - 1236.01 ms - JIT: 0.004944 ms, Kernel: 1219.64 ms, Parse: 13.3906 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 11.9456 ms
+[DIAG] CPU Filter Time: 2.3847 ms
+Engine Breakdown: Load 1.79158 ms, Kernel 1219.37 ms - 
+Final Result: 0
+Repetition 3/5 - 1221.16 ms - 1248.93 ms - JIT: 0.004919 ms, Kernel: 1218.76 ms, Parse: 25.1009 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 11.2779 ms
+[DIAG] CPU Filter Time: 2.3563 ms
+Engine Breakdown: Load 1.0403 ms, Kernel 1220.74 ms - 
+Final Result: 0
+Repetition 4/5 - 1221.78 ms - 1248.7 ms - JIT: 0.004975 ms, Kernel: 1220.27 ms, Parse: 25.5172 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 9.3334 ms
+[DIAG] CPU Filter Time: 2.1568 ms
+Engine Breakdown: Load 0.777198 ms, Kernel 1220.68 ms - 
+Final Result: 0
+Repetition 5/5 - 1221.46 ms - 1256.36 ms - JIT: 0.013439 ms, Kernel: 1219.94 ms, Parse: 33.3641 ms
+Benchmarking queries/transformed/q31.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.0352 ms
+Engine Breakdown: Load 23067.4 ms, Kernel 1997.85 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 25065.3 ms - 25081.3 ms - JIT: 0.01241 ms, Kernel: 109.551 ms, Parse: 13.7372 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.7553 ms
+Engine Breakdown: Load 0.731311 ms, Kernel 378.322 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 379.053 ms - 394.399 ms - JIT: 0.005969 ms, Kernel: 3.29405 ms, Parse: 14.165 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2071 ms
+Engine Breakdown: Load 0.714165 ms, Kernel 378.175 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 378.89 ms - 393.554 ms - JIT: 0.005697 ms, Kernel: 2.70764 ms, Parse: 13.376 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2546 ms
+Engine Breakdown: Load 0.757042 ms, Kernel 378.471 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 379.228 ms - 394.298 ms - JIT: 0.005862 ms, Kernel: 2.83846 ms, Parse: 13.9739 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2423 ms
+Engine Breakdown: Load 0.748682 ms, Kernel 378.397 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 379.146 ms - 409.657 ms - JIT: 0.00631 ms, Kernel: 2.79108 ms, Parse: 13.7624 ms
+Benchmarking queries/transformed/q32.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.1543 ms
+Engine Breakdown: Load 22185.8 ms, Kernel 1763.72 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 23949.5 ms - 24027.8 ms - JIT: 0.007169 ms, Kernel: 450.155 ms, Parse: 13.645 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2674 ms
+Engine Breakdown: Load 1.04267 ms, Kernel 380.292 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 381.335 ms - 398.783 ms - JIT: 0.006343 ms, Kernel: 2.77223 ms, Parse: 13.8054 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.0932 ms
+Engine Breakdown: Load 0.771426 ms, Kernel 380.273 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 381.045 ms - 399.491 ms - JIT: 0.005641 ms, Kernel: 2.561 ms, Parse: 14.4035 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.4113 ms
+Engine Breakdown: Load 1.31694 ms, Kernel 380.294 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 381.611 ms - 400.043 ms - JIT: 0.00746 ms, Kernel: 3.04209 ms, Parse: 13.8711 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2987 ms
+Engine Breakdown: Load 0.860195 ms, Kernel 380.668 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 381.529 ms - 416.115 ms - JIT: 0.005819 ms, Kernel: 2.81444 ms, Parse: 15.4861 ms
+Benchmarking queries/transformed/q33.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 23251.1 ms, Kernel 1584.61 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 24835.7 ms - 24854.8 ms - JIT: 0.015892 ms, Kernel: 0.445298 ms, Parse: 16.5726 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.456209 ms, Kernel 380.333 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 380.789 ms - 390.262 ms - JIT: 0.004933 ms, Kernel: 0.306847 ms, Parse: 5.69113 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.671409 ms, Kernel 380.269 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 380.941 ms - 397.884 ms - JIT: 0.005993 ms, Kernel: 0.406577 ms, Parse: 13.4819 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.48194 ms, Kernel 380.224 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 380.706 ms - 403.817 ms - JIT: 0.005546 ms, Kernel: 0.386004 ms, Parse: 20.0019 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+Engine Breakdown: Load 0.54952 ms, Kernel 380.285 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 380.835 ms - 397.619 ms - JIT: 0.006612 ms, Kernel: 0.396056 ms, Parse: 13.2782 ms
+Benchmarking queries/transformed/q34.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.2139 ms
+Engine Breakdown: Load 22251.8 ms, Kernel 1569.8 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 23821.6 ms - 23836.9 ms - JIT: 0.013308 ms, Kernel: 0.602218 ms, Parse: 12.9008 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.6473 ms
+Engine Breakdown: Load 1.28035 ms, Kernel 379.991 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 381.271 ms - 398.938 ms - JIT: 0.009601 ms, Kernel: 1.27584 ms, Parse: 14.1677 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.5859 ms
+Engine Breakdown: Load 0.697733 ms, Kernel 380.507 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 381.205 ms - 407.741 ms - JIT: 0.006539 ms, Kernel: 1.04 ms, Parse: 13.4012 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.6763 ms
+Engine Breakdown: Load 0.892972 ms, Kernel 380.613 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 381.506 ms - 401.64 ms - JIT: 0.008881 ms, Kernel: 1.18648 ms, Parse: 16.2131 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 0.5770 ms
+Engine Breakdown: Load 1.24521 ms, Kernel 379.836 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 381.082 ms - 400.596 ms - JIT: 0.009653 ms, Kernel: 1.13921 ms, Parse: 15.7288 ms
+Benchmarking queries/transformed/q41.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.7884 ms
+Engine Breakdown: Load 22715.1 ms, Kernel 1661.08 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 24376.2 ms - 24409.1 ms - JIT: 0.011761 ms, Kernel: 397.584 ms, Parse: 23.9141 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2995 ms
+Engine Breakdown: Load 1.34159 ms, Kernel 376.851 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 378.193 ms - 404.342 ms - JIT: 0.008145 ms, Kernel: 2.84847 ms, Parse: 24.5747 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.4881 ms
+Engine Breakdown: Load 1.84895 ms, Kernel 376.194 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 378.043 ms - 402.656 ms - JIT: 0.007187 ms, Kernel: 3.10723 ms, Parse: 23.3096 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.2799 ms
+Engine Breakdown: Load 0.806929 ms, Kernel 377.292 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 378.098 ms - 403.245 ms - JIT: 0.007639 ms, Kernel: 2.82083 ms, Parse: 24.2813 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.8163 ms
+Engine Breakdown: Load 1.58512 ms, Kernel 376.182 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 377.767 ms - 408.248 ms - JIT: 0.006151 ms, Kernel: 2.26257 ms, Parse: 28.8204 ms
+Benchmarking queries/transformed/q42.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.3014 ms
+Engine Breakdown: Load 23544.4 ms, Kernel 1973.93 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 25518.3 ms - 25543.7 ms - JIT: 0.010064 ms, Kernel: 243.443 ms, Parse: 23.7807 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.9525 ms
+Engine Breakdown: Load 1.22104 ms, Kernel 377.728 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 378.949 ms - 401.491 ms - JIT: 0.006958 ms, Kernel: 2.45877 ms, Parse: 20.8301 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.4786 ms
+Engine Breakdown: Load 1.75104 ms, Kernel 376.931 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 378.682 ms - 402.964 ms - JIT: 0.008102 ms, Kernel: 3.19765 ms, Parse: 23.1097 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.1892 ms
+Engine Breakdown: Load 1.6877 ms, Kernel 377.548 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 379.236 ms - 402.079 ms - JIT: 0.009526 ms, Kernel: 2.91523 ms, Parse: 21.5371 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.4503 ms
+Engine Breakdown: Load 1.48587 ms, Kernel 377.563 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 379.049 ms - 419.662 ms - JIT: 0.008911 ms, Kernel: 3.14659 ms, Parse: 22.4347 ms
+Benchmarking queries/transformed/q43.sql on cuda:0
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.1787 ms
+[DIAG] CPU Filter Time: 5.6761 ms
+Engine Breakdown: Load 22904.5 ms, Kernel 2166.04 ms - 
+Final Result (First Row): 0
+Repetition 1/5 - 25070.5 ms - 25100.7 ms - JIT: 0.008748 ms, Kernel: 252.99 ms, Parse: 21.7188 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 1.8536 ms
+[DIAG] CPU Filter Time: 7.6613 ms
+Engine Breakdown: Load 1.37939 ms, Kernel 377.442 ms - 
+Final Result (First Row): 0
+Repetition 2/5 - 378.822 ms - 408.241 ms - JIT: 0.008802 ms, Kernel: 10.0415 ms, Parse: 20.6239 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.4071 ms
+[DIAG] CPU Filter Time: 10.8945 ms
+Engine Breakdown: Load 0.826016 ms, Kernel 377.98 ms - 
+Final Result (First Row): 0
+Repetition 3/5 - 378.806 ms - 406.354 ms - JIT: 0.007672 ms, Kernel: 13.9014 ms, Parse: 20.071 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 2.3668 ms
+[DIAG] CPU Filter Time: 9.8777 ms
+Engine Breakdown: Load 0.850644 ms, Kernel 378.565 ms - 
+Final Result (First Row): 0
+Repetition 4/5 - 379.416 ms - 415.424 ms - JIT: 0.008199 ms, Kernel: 13.0961 ms, Parse: 28.2149 ms
+[DEBUG] Moving table lineorder to device 2 (17 columns)
+[DIAG] CPU Filter Time: 3.2574 ms
+[DIAG] CPU Filter Time: 10.1489 ms
+Engine Breakdown: Load 1.75845 ms, Kernel 377.896 ms - 
+Final Result (First Row): 0
+Repetition 5/5 - 379.668 ms - 409.249 ms - JIT: 0.016673 ms, Kernel: 14.6501 ms, Parse: 21.4797 ms

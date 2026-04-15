@@ -1,0 +1,143 @@
+--- Running q11 ---
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.00063 ms, Kernel time: 0.100277 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.002009 ms, Kernel time: 23.5328 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.001567 ms, Kernel time: 0.119133 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.000796 ms, Kernel time: 0.108323 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.004542 ms, Kernel time: 23.4372 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.001916 ms, Kernel time: 0.391124 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.002275 ms, Kernel time: 0.133911 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.002162 ms, Kernel time: 23.4342 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.001677 ms, Kernel time: 0.135153 ms
+[JIT-FUSION] Partial fusion (size 7) JIT time: 0.00087 ms, Kernel time: 0.106732 ms
+--- Running q12 ---
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001339 ms, Kernel time: 0.159588 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.003136 ms, Kernel time: 23.4845 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.002776 ms, Kernel time: 0.19236 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001375 ms, Kernel time: 0.143566 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.002781 ms, Kernel time: 23.4731 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.002422 ms, Kernel time: 0.174995 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001272 ms, Kernel time: 0.139746 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.00352 ms, Kernel time: 23.4733 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.002708 ms, Kernel time: 0.173859 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001387 ms, Kernel time: 0.138174 ms
+--- Running q13 ---
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.000773 ms, Kernel time: 0.092914 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.004821 ms, Kernel time: 23.4867 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001874 ms, Kernel time: 0.117047 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.000974 ms, Kernel time: 0.10597 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.002807 ms, Kernel time: 23.5022 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001576 ms, Kernel time: 0.109628 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.000881 ms, Kernel time: 0.098146 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.003113 ms, Kernel time: 23.4911 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.001563 ms, Kernel time: 0.115113 ms
+[JIT-FUSION] Partial fusion (size 8) JIT time: 0.000962 ms, Kernel time: 0.101898 ms
+--- Running q21 ---
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003077 ms, Kernel time: 2.49666 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002301 ms, Kernel time: 3.27825 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001485 ms, Kernel time: 3.36824 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002538 ms, Kernel time: 0.44216 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002474 ms, Kernel time: 3.37055 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002706 ms, Kernel time: 3.35528 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002653 ms, Kernel time: 0.411743 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002257 ms, Kernel time: 3.37213 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.004142 ms, Kernel time: 1.3211 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.007689 ms, Kernel time: 0.51044 ms
+--- Running q22 ---
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.00078 ms, Kernel time: 1.19065 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000538 ms, Kernel time: 0.314661 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.00142 ms, Kernel time: 23.4685 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001546 ms, Kernel time: 1.17689 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001354 ms, Kernel time: 1.19504 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000751 ms, Kernel time: 0.322322 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001327 ms, Kernel time: 23.4646 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002825 ms, Kernel time: 1.18457 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002575 ms, Kernel time: 1.20158 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.004282 ms, Kernel time: 0.407889 ms
+--- Running q23 ---
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.007946 ms, Kernel time: 0.574126 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003943 ms, Kernel time: 1.27372 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003243 ms, Kernel time: 1.33492 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003963 ms, Kernel time: 0.493445 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.004473 ms, Kernel time: 1.21546 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.009961 ms, Kernel time: 1.38035 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.006272 ms, Kernel time: 0.553844 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.004054 ms, Kernel time: 1.22856 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.008823 ms, Kernel time: 1.44308 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002926 ms, Kernel time: 0.486777 ms
+--- Running q31 ---
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000991 ms, Kernel time: 1.22234 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003758 ms, Kernel time: 0.441027 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.003009 ms, Kernel time: 0.058489 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001109 ms, Kernel time: 1.1833 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002997 ms, Kernel time: 1.26494 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.00247 ms, Kernel time: 0.428283 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001902 ms, Kernel time: 0.043855 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000843 ms, Kernel time: 1.17199 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.005266 ms, Kernel time: 1.25853 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.007841 ms, Kernel time: 0.525395 ms
+--- Running q32 ---
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003749 ms, Kernel time: 1.37556 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.004004 ms, Kernel time: 0.530431 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.003281 ms, Kernel time: 0.077599 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001692 ms, Kernel time: 1.2084 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002266 ms, Kernel time: 1.2473 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.006984 ms, Kernel time: 0.532833 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.003189 ms, Kernel time: 0.070738 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001674 ms, Kernel time: 1.21453 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002288 ms, Kernel time: 1.25966 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002945 ms, Kernel time: 0.470518 ms
+--- Running q33 ---
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001055 ms, Kernel time: 0.064784 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001382 ms, Kernel time: 1.21532 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003281 ms, Kernel time: 1.31331 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.002983 ms, Kernel time: 0.482033 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002196 ms, Kernel time: 24.1262 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002423 ms, Kernel time: 0.0931 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.00276 ms, Kernel time: 0.068785 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001668 ms, Kernel time: 1.22707 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003034 ms, Kernel time: 1.27365 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003375 ms, Kernel time: 0.417965 ms
+--- Running q34 ---
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001191 ms, Kernel time: 23.5651 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001001 ms, Kernel time: 0.045775 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001364 ms, Kernel time: 1.18581 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000518 ms, Kernel time: 1.16423 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.000483 ms, Kernel time: 0.309878 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001013 ms, Kernel time: 23.5661 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001245 ms, Kernel time: 0.044712 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.001079 ms, Kernel time: 1.18607 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.00061 ms, Kernel time: 1.16327 ms
+[JIT-FUSION] Partial fusion (size 3) JIT time: 0.003322 ms, Kernel time: 0.373888 ms
+--- Running q41 ---
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.00186 ms, Kernel time: 1.20072 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003115 ms, Kernel time: 0.369958 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.003249 ms, Kernel time: 0.067285 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.00349 ms, Kernel time: 1.20812 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.001892 ms, Kernel time: 1.20539 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.014842 ms, Kernel time: 0.533145 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002226 ms, Kernel time: 0.080108 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.002292 ms, Kernel time: 1.21913 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003041 ms, Kernel time: 1.2925 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.002164 ms, Kernel time: 0.378862 ms
+--- Running q42 ---
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002384 ms, Kernel time: 0.068099 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.004162 ms, Kernel time: 0.08569 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.004165 ms, Kernel time: 1.23604 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.002458 ms, Kernel time: 1.2487 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.00124 ms, Kernel time: 0.386733 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002123 ms, Kernel time: 0.080897 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.001211 ms, Kernel time: 0.071115 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.00194 ms, Kernel time: 1.2174 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.001667 ms, Kernel time: 1.21738 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.00269 ms, Kernel time: 0.407279 ms
+--- Running q43 ---
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003459 ms, Kernel time: 1.28564 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003596 ms, Kernel time: 0.406151 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.002605 ms, Kernel time: 0.061525 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003069 ms, Kernel time: 1.20996 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.001631 ms, Kernel time: 1.22318 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.006933 ms, Kernel time: 0.495044 ms
+[JIT-FUSION] Partial fusion (size 2) JIT time: 0.003413 ms, Kernel time: 0.07886 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.002249 ms, Kernel time: 1.21875 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.002044 ms, Kernel time: 1.25388 ms
+[JIT-FUSION] Partial fusion (size 5) JIT time: 0.003056 ms, Kernel time: 0.38254 ms

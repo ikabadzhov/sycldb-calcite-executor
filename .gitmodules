@@ -1,0 +1,4 @@
+[submodule "GenDB"]
+	path = GenDB
+	url = https://github.com/ikabadzhov/GenDB.git
+	branch = benchmark-reproduction

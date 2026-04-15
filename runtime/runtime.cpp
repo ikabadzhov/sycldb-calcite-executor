@@ -252,11 +252,11 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
 
         const uint64_t max_allocator_size = is_cpu_backend ?
             SIZE_TEMP_MEMORY_CPU :
-            ((((uint64_t)10) << 30) + (((uint64_t)512) << 20));
+            (((uint64_t)40) << 30);
 
         uint64_t allocator_size = std::min<uint64_t>(
             std::max<uint64_t>(SIZE_TEMP_MEMORY_GPU, mem_size / 2),
-            max_allocator_size
+            std::min<uint64_t>(max_allocator_size, mem_size - (((uint64_t)2) << 30))
         );
         uint64_t allocator_region_size = ((uint64_t)2) << 30;
 

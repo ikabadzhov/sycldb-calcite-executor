@@ -444,7 +444,8 @@ public:
                     cpu_queue,
                     device_queues,
                     deps_cpu,
-                    deps_devices
+                    deps_devices,
+                    segment_index
                 );
 
                 if (bundle.is_on_device())
