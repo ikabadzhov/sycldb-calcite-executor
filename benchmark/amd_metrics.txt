@@ -1,0 +1,1 @@
+pmc: FetchSize WriteSize VALUUtilization VALUBusy WriteUnitBusy L2CacheHit VGPRs SGPRs Wavefronts
