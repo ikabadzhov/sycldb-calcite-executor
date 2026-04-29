@@ -6,8 +6,10 @@ export ACPP_ROCM_PATH := /opt/rocm-6.3.3
 
 CXX := acpp
 CXXFLAGS := -std=c++20 -O3 -fPIC --acpp-targets="generic" \
-	-I. -Iapp -Ibenchmark -Iexecutor -Iruntime -Ikernels -Igen-cpp -Ioperations -Imodels -I/usr/local/include
-LDFLAGS := -L/usr/local/lib -lthrift -Wl,-rpath=/usr/local/lib
+	-I. -Iapp -Ibenchmark -Iexecutor -Iruntime -Ikernels -Igen-cpp -Ioperations -Imodels -I/usr/local/include \
+	-I/home/ivan/.local/lib/python3.12/site-packages/pyarrow/include
+LDFLAGS := -L/usr/local/lib -lthrift -Wl,-rpath=/usr/local/lib \
+	-L/home/ivan/.local/lib/python3.12/site-packages/pyarrow -larrow -lparquet
 
 SRC := main.cpp \
 	$(wildcard app/*.cpp) \

@@ -1,0 +1,13 @@
+/media/ssb/transformed_queries/q11.sql
+/media/ssb/transformed_queries/q12.sql
+/media/ssb/transformed_queries/q13.sql
+/media/ssb/transformed_queries/q21.sql
+/media/ssb/transformed_queries/q22.sql
+/media/ssb/transformed_queries/q23.sql
+/media/ssb/transformed_queries/q31.sql
+/media/ssb/transformed_queries/q32.sql
+/media/ssb/transformed_queries/q33.sql
+/media/ssb/transformed_queries/q34.sql
+/media/ssb/transformed_queries/q41.sql
+/media/ssb/transformed_queries/q42.sql
+/media/ssb/transformed_queries/q43.sql

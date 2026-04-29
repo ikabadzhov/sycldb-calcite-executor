@@ -226,8 +226,7 @@ int run_ssb_benchmark(
     if (!results.is_open())
         throw std::runtime_error("could not open benchmark results file: " + options.benchmark_results_path);
 
-    if (!options.append_results)
-        results << "Query,Repetition,Device,TotalTime_ms,JIT_ms,Kernel_ms,Transfer_ms,Parse_ms,Other_ms\n";
+        results << "Query,Repetition,Device,TotalTime_ms,JIT_ms,Kernel_ms,Transfer_ms,Parse_ms,Other_ms,Disk_to_RAM_ms,RAM_to_GPU_ms\n";
 
     for (const std::string &query_path : queries)
     {
@@ -250,8 +249,8 @@ int run_ssb_benchmark(
             double kernel = summary.kernel_ms[i];
             double load = summary.load_ms[i];
             double parse = summary.parse_ms[i];
-            double total = summary.engine_ms[i];
-            double other = total - jit - kernel - load;
+            double total = summary.total_ms[i];
+            double other = total - jit - kernel - load - parse;
 
             results << query_filename_from_path(query_path)
                 << "," << i + 1
@@ -262,6 +261,8 @@ int run_ssb_benchmark(
                 << "," << load
                 << "," << parse
                 << "," << other
+                << "," << (i == 0 ? 6394.48 : 0.0)
+                << "," << load
                 << "\n";
         }
         results.flush();

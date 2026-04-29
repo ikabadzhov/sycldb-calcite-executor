@@ -59,7 +59,13 @@ int device_preload_priority(const sycl::device &device)
 
 std::vector<sycl::device> discover_execution_devices()
 {
-    std::vector<sycl::device> devices = sycl::device::get_devices();
+    std::vector<sycl::device> all_devices = sycl::device::get_devices();
+    std::vector<sycl::device> devices;
+    for(const auto& d : all_devices) {
+        if(d.is_gpu()) {
+            devices.push_back(d);
+        }
+    }
     std::stable_sort(
         devices.begin(),
         devices.end(),
@@ -255,10 +261,13 @@ std::vector<memory_manager> build_device_allocators(const RuntimeEnvironment &ru
             ((((uint64_t)10) << 30) + (((uint64_t)512) << 20));
 
         uint64_t allocator_size = std::min<uint64_t>(
-            std::max<uint64_t>(SIZE_TEMP_MEMORY_GPU, mem_size / 2),
+            SIZE_TEMP_MEMORY_GPU,
             max_allocator_size
         );
         uint64_t allocator_region_size = ((uint64_t)2) << 30;
+
+
+
 
         if (!device.is_gpu())
         {

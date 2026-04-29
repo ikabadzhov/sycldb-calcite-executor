@@ -14,6 +14,12 @@
 #include "../kernels/join.hpp"
 #include "../common.hpp"
 
+#include <parquet/arrow/reader.h>
+#include <arrow/io/file.h>
+#include <arrow/table.h>
+#include <arrow/array.h>
+#include <map>
+
 #include "execution.hpp"
 
 
@@ -1659,52 +1665,121 @@ public:
     Table(const std::string table_name, sycl::queue &cpu_queue, std::vector<sycl::queue> &device_queues)
         : table_name(table_name)
     {
-        int col_number = table_column_numbers.at(table_name), *content;
+        int col_number = table_column_numbers.at(table_name), *content = nullptr;
         columns.reserve(col_number);
 
         const std::set<int> &columns_needed = table_column_indices.at(table_name);
 
-        bool nrows_set = false;
-        for (int i = 0; i < col_number; i++)
+        std::string parquet_dir = "/media/ssb/ssb_sf100_parquet/";
+        std::string base_filename = table_name;
+        if (table_name == "ddate") base_filename = "date";
+        std::string parquet_file = parquet_dir + base_filename + ".parquet";
+
+        std::shared_ptr<arrow::io::ReadableFile> infile;
+        auto open_res = arrow::io::ReadableFile::Open(parquet_file);
+        
+        if (open_res.ok()) {
+            std::move(open_res).Value(&infile);
+            std::unique_ptr<parquet::arrow::FileReader> reader;
+            parquet::arrow::OpenFile(std::static_pointer_cast<arrow::io::RandomAccessFile>(infile), arrow::default_memory_pool()).Value(&reader);
+            
+            std::shared_ptr<arrow::Schema> schema;
+            reader->GetSchema(&schema);
+            
+            nrows = reader->parquet_reader()->metadata()->num_rows();
+            content = sycl::malloc_host<int>(nrows, cpu_queue);
+
+            std::map<int, std::string> col_map;
+            if (table_name == "lineorder") {
+                col_map = {{2, "lo_custkey"}, {3, "lo_partkey"}, {4, "lo_suppkey"}, {5, "lo_orderdate"},
+                           {8, "lo_quantity"}, {9, "lo_extendedprice"}, {11, "lo_discount"}, {12, "lo_revenue"},
+                           {13, "lo_supplycost"}};
+            } else if (table_name == "part") {
+                col_map = {{0, "p_partkey"}, {2, "p_mfgr"}, {3, "p_category"}, {4, "p_brand1"}};
+            } else if (table_name == "supplier") {
+                col_map = {{0, "s_suppkey"}, {3, "s_city"}, {4, "s_nation"}, {5, "s_region"}};
+            } else if (table_name == "customer") {
+                col_map = {{0, "c_custkey"}, {3, "c_city"}, {4, "c_nation"}, {5, "c_region"}};
+            } else if (table_name == "ddate") {
+                col_map = {{0, "d_datekey"}, {4, "d_year"}, {5, "d_yearmonthnum"}};
+            }
+
+            for (int i = 0; i < col_number; i++)
+            {
+                if (columns_needed.find(i) == columns_needed.end() || col_map.find(i) == col_map.end())
+                {
+                    columns.emplace_back();
+                    continue;
+                }
+
+                std::string col_parquet_name = col_map[i];
+                int col_idx = schema->GetFieldIndex(col_parquet_name);
+                if (col_idx == -1) throw std::runtime_error("Parquet column not found: " + col_parquet_name);
+
+                std::shared_ptr<arrow::ChunkedArray> array;
+                auto t1 = std::chrono::high_resolution_clock::now();
+                reader->ReadColumn(col_idx, &array);
+
+                size_t offset = 0;
+                for (int j = 0; j < array->num_chunks(); ++j) {
+                    auto chunk = std::static_pointer_cast<arrow::Int32Array>(array->chunk(j));
+                    std::memcpy(content + offset, chunk->raw_values(), chunk->length() * sizeof(int));
+                    offset += chunk->length();
+                }
+                auto t2 = std::chrono::high_resolution_clock::now();
+                g_total_disk_to_ram_ms += std::chrono::duration<double, std::milli>(t2 - t1).count();
+                
+                columns.emplace_back(content, nrows, cpu_queue, device_queues);
+            }
+            sycl::free(content, cpu_queue);
+        } 
+        else 
         {
-            if (columns_needed.find(i) == columns_needed.end())
+            bool nrows_set = false;
+            for (int i = 0; i < col_number; i++)
             {
-                columns.emplace_back();
-                continue;
+                if (columns_needed.find(i) == columns_needed.end())
+                {
+                    columns.emplace_back();
+                    continue;
+                }
+
+                std::string col_name = table_name + std::to_string(i);
+                std::transform(col_name.begin(), col_name.end(), col_name.begin(), ::toupper);
+
+                std::string filename = std::string("/media/ssb/s100_columnar/") + col_name;
+                std::ifstream colData(filename.c_str(), std::ios::in | std::ios::binary);
+
+                colData.seekg(0, std::ios::end);
+                std::streampos fileSize = colData.tellg();
+                uint64_t num_entries = (fileSize == std::streampos(-1)) ? 0 : static_cast<uint64_t>(fileSize / sizeof(int));
+
+                if (!nrows_set)
+                {
+                    nrows = num_entries;
+                    content = sycl::malloc_host<int>(nrows, cpu_queue);
+                    nrows_set = true;
+                }
+
+                if (num_entries != nrows)
+                {
+                    std::cerr << "Warning: Column length mismatch in " << filename << ": expected " << nrows << ", got " << num_entries << std::endl;
+                    columns.emplace_back();
+                }
+                else
+                {
+                    colData.seekg(0, std::ios::beg);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+                    colData.read((char *)content, num_entries * sizeof(int));
+                    auto t2 = std::chrono::high_resolution_clock::now();
+                    g_total_disk_to_ram_ms += std::chrono::duration<double, std::milli>(t2 - t1).count();
+                    columns.emplace_back(content, num_entries, cpu_queue, device_queues);
+                }
+
+                colData.close();
             }
-
-            std::string col_name = table_name + std::to_string(i);
-            std::transform(col_name.begin(), col_name.end(), col_name.begin(), ::toupper);
-
-            std::string filename = DATA_DIR + col_name;
-            std::ifstream colData(filename.c_str(), std::ios::in | std::ios::binary);
-
-            colData.seekg(0, std::ios::end);
-            std::streampos fileSize = colData.tellg();
-            uint64_t num_entries = (fileSize == std::streampos(-1)) ? 0 : static_cast<uint64_t>(fileSize / sizeof(int));
-
-            if (!nrows_set)
-            {
-                nrows = num_entries;
-                content = sycl::malloc_host<int>(nrows, cpu_queue);
-                nrows_set = true;
-            }
-
-            if (num_entries != nrows)
-            {
-                std::cerr << "Warning: Column length mismatch in " << filename << ": expected " << nrows << ", got " << num_entries << std::endl;
-                columns.emplace_back();
-            }
-            else
-            {
-                colData.seekg(0, std::ios::beg);
-                colData.read((char *)content, num_entries * sizeof(int));
-                columns.emplace_back(content, num_entries, cpu_queue, device_queues);
-            }
-
-            colData.close();
+            if (content != nullptr) sycl::free(content, cpu_queue);
         }
-        sycl::free(content, cpu_queue);
     }
 
     uint64_t get_nrows() const { return nrows; }
